@@ -7,8 +7,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="杰少">
     <meta name="theme-color" content="#0f0f1a">
-    <link rel="manifest" href="/static/manifest.json">
-    <link rel="apple-touch-icon" href="/static/icon-192.png">
+    <link rel="manifest" href="static/manifest.json">
+    <link rel="apple-touch-icon" href="static/icon-192.png">
     <title>杰少 - 你的AI助手</title>
     <style>
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -149,7 +149,7 @@
 <div id="app">
     <header>
         <button class="icon-btn" onclick="toggleSidebar()" title="对话列表">☰</button>
-        <div class="avatar" id="personality-avatar" onclick="cyclePersonality()"><img src="/static/avatar.png" alt=""></div>
+        <div class="avatar" id="personality-avatar" onclick="cyclePersonality()"><img src="static/avatar.png" alt=""></div>
         <div class="header-title">杰少</div>
         <span class="header-badge badge-v3" id="mode-badge">V3</span>
         <select class="personality-select" id="personality-select" onchange="switchPersonality(this.value)">
@@ -178,7 +178,7 @@
 
     <div id="chat-container">
         <div class="welcome" id="welcome-box">
-            <div class="welcome-icon"><img src="/static/avatar.png" style="width:64px;height:64px;border-radius:18px;object-fit:cover"></div>
+            <div class="welcome-icon"><img src="static/avatar.png" style="width:64px;height:64px;border-radius:18px;object-fit:cover"></div>
             <h2>你好，我是杰少</h2>
             <p>你的全能AI助手，有记忆、有性格、有温度</p>
             <div class="quick-actions">
@@ -806,7 +806,7 @@ function showToast(msg){
     const t=document.createElement("div"); t.className="toast"; t.textContent=msg;
     document.body.appendChild(t); setTimeout(()=>t.remove(),2000);
 }
-if("serviceWorker" in navigator){ navigator.serviceWorker.register("/static/sw.js").catch(()=>{}); }
+if("serviceWorker" in navigator){ navigator.serviceWorker.register("static/sw.js").catch(()=>{}); }
 init();
 </script>
 </body>
