@@ -92,7 +92,7 @@
         .greeting-card .greet-date{font-size:12px;color:var(--text2);margin-top:3px}
 
         /* Game selector */
-        .game-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:12px 0}
+        .game-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
         .game-option{padding:14px 6px;border-radius:14px;border:1px solid var(--border);background:var(--bg);text-align:center;cursor:pointer;transition:all .15s}
         .game-option:active{background:var(--accent);border-color:var(--accent);color:#fff}
         .game-option .game-icon{font-size:28px;display:block;margin-bottom:6px}
@@ -103,6 +103,14 @@
         .game-bar.hidden{display:none}
         .game-bar .game-label{flex:1;color:var(--accent);font-weight:500}
         .game-bar button{background:var(--border);border:none;color:var(--text);padding:3px 10px;border-radius:8px;font-size:11px;cursor:pointer}
+
+        /* Dino Game */
+        #dino-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:170;display:flex;align-items:center;justify-content:center;flex-direction:column}
+        #dino-overlay.hidden{display:none}
+        #dino-canvas{border:2px solid var(--border);border-radius:12px;background:#1a1a2e;max-width:95vw}
+        #dino-score{color:var(--text);font-size:18px;font-weight:600;margin-bottom:8px}
+        #dino-hint{color:var(--text2);font-size:13px;margin-top:10px}
+        #dino-close{position:absolute;top:16px;right:20px;background:none;border:none;color:#fff;font-size:28px;cursor:pointer;z-index:171}
 
         #input-area{padding:10px 14px 16px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0}
         .input-row{display:flex;gap:8px;align-items:flex-end}
@@ -232,9 +240,22 @@
                     <span class="game-name">猜谜语</span>
                     <span class="game-desc">动动脑筋猜谜底</span>
                 </div>
+                <div class="game-option" onclick="closeGameSelector();startDinoGame()">
+                    <span class="game-icon">🦖</span>
+                    <span class="game-name">小恐龙</span>
+                    <span class="game-desc">点击跳跃，避开障碍</span>
+                </div>
             </div>
             <button class="btn btn-secondary" style="width:100%;padding:10px" onclick="closeGameSelector()">取消</button>
         </div>
+    </div>
+
+    <!-- Dino Game Overlay -->
+    <div class="hidden" id="dino-overlay">
+        <button id="dino-close" onclick="stopDinoGame()">✕</button>
+        <div id="dino-score">🦖 得分：0</div>
+        <canvas id="dino-canvas" width="360" height="200"></canvas>
+        <div id="dino-hint">👆 点击画面跳跃 | 🏆 最高分：<span id="dino-best">0</span></div>
     </div>
 
     <div id="input-area">
@@ -660,6 +681,149 @@ function showTyping(){
     c.appendChild(d); c.scrollTop=c.scrollHeight;
 }
 function removeTyping(){ const e=document.getElementById("typing-indicator"); if(e) e.remove(); }
+
+// ============ DINO GAME ============
+let dinoCtx, dinoAnimId, dinoState;
+const DINO_W = 360, DINO_H = 200;
+
+function startDinoGame(){
+    const overlay = document.getElementById("dino-overlay");
+    overlay.classList.remove("hidden");
+    const canvas = document.getElementById("dino-canvas");
+    canvas.width = DINO_W; canvas.height = DINO_H;
+    dinoCtx = canvas.getContext("2d");
+
+    dinoState = {
+        x: 40, y: DINO_H - 40, vy: 0, grounded: true,
+        obstacles: [], score: 0, over: false,
+        speed: 3, tick: 0, best: parseInt(localStorage.getItem("ld_dino_best")||"0"),
+    };
+
+    canvas.addEventListener("click", dinoJump);
+    document.addEventListener("keydown", dinoKey);
+    document.getElementById("dino-best").textContent = dinoState.best;
+    dinoAnimId = requestAnimationFrame(dinoLoop);
+}
+
+function stopDinoGame(){
+    cancelAnimationFrame(dinoAnimId);
+    const canvas = document.getElementById("dino-canvas");
+    canvas.removeEventListener("click", dinoJump);
+    document.removeEventListener("keydown", dinoKey);
+    document.getElementById("dino-overlay").classList.add("hidden");
+}
+
+function dinoKey(e){ if(e.code === "Space" || e.code === "ArrowUp"){ e.preventDefault(); dinoJump(); } }
+
+function dinoJump(){
+    const s = dinoState;
+    if(s.over){
+        // Restart
+        s.obstacles = []; s.score = 0; s.over = false; s.speed = 3; s.y = DINO_H - 40; s.vy = 0; s.grounded = true; s.tick = 0;
+        document.getElementById("dino-best").textContent = s.best;
+        return;
+    }
+    if(s.grounded){ s.vy = -9; s.grounded = false; }
+}
+
+function dinoLoop(){
+    const s = dinoState, ctx = dinoCtx;
+    ctx.clearRect(0, 0, DINO_W, DINO_H);
+
+    // Ground
+    ctx.fillStyle = "#404060";
+    ctx.fillRect(0, DINO_H - 15, DINO_W, 2);
+
+    // Physics
+    if(!s.over){
+        s.y += s.vy;
+        s.vy += 0.5;
+        if(s.y >= DINO_H - 40){ s.y = DINO_H - 40; s.vy = 0; s.grounded = true; }
+        s.tick++;
+
+        // Spawn obstacles
+        if(s.tick % 70 === 0 || (s.tick > 300 && s.tick % 45 === 0)){
+            const h = 16 + Math.random() * 18;
+            s.obstacles.push({x: DINO_W, y: DINO_H - 30 - h, w: 10, h: h});
+        }
+
+        // Move obstacles
+        for(const o of s.obstacles) o.x -= s.speed;
+        s.obstacles = s.obstacles.filter(o => o.x > -20);
+
+        // Speed up
+        if(s.tick % 200 === 0) s.speed += 0.3;
+        s.score++;
+    }
+
+    // Draw dinosaur
+    const dx = s.x, dy = s.y;
+    ctx.fillStyle = s.over ? "#888" : "#7c5cfc";
+    // Body
+    ctx.fillRect(dx - 6, dy - 20, 14, 22);
+    // Head
+    ctx.fillRect(dx + 2, dy - 26, 8, 8);
+    // Eye
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(dx + 5, dy - 24, 3, 3);
+    // Legs
+    ctx.fillStyle = s.over ? "#888" : "#7c5cfc";
+    if(!s.grounded && !s.over){
+        ctx.fillRect(dx - 6, dy + 2, 5, 6);
+        ctx.fillRect(dx + 3, dy + 2, 5, 6);
+    }else{
+        const leg = Math.sin(s.tick * 0.3) * 3;
+        ctx.fillRect(dx - 6, dy + 2, 5, 7 + leg);
+        ctx.fillRect(dx + 3, dy + 2, 5, 7 - leg);
+    }
+
+    // Draw obstacles
+    ctx.fillStyle = "#4ade80";
+    for(const o of s.obstacles){
+        ctx.fillRect(o.x, o.y, o.w, o.h);
+        // Spikes on top
+        ctx.fillStyle = "#2ea060";
+        for(let i = 0; i < 3; i++){
+            ctx.fillRect(o.x - 2 + i * 5, o.y - 5, 4, 6);
+        }
+        ctx.fillStyle = "#4ade80";
+    }
+
+    // Collision
+    if(!s.over){
+        const dr = {x: dx - 4, y: dy - 24, w: 16, h: 32};
+        for(const o of s.obstacles){
+            if(dr.x < o.x + o.w && dr.x + dr.w > o.x && dr.y < o.y + o.h && dr.y + dr.h > o.y){
+                s.over = true;
+                if(s.score > s.best){
+                    s.best = s.score;
+                    localStorage.setItem("ld_dino_best", s.best);
+                    document.getElementById("dino-best").textContent = s.best;
+                }
+                break;
+            }
+        }
+    }
+
+    // Score
+    const realScore = Math.floor(s.score / 5);
+    document.getElementById("dino-score").textContent = (s.over ? "💀 " : "🦖 ") + "得分：" + realScore;
+
+    // Game over overlay
+    if(s.over){
+        ctx.fillStyle = "rgba(0,0,0,.5)";
+        ctx.fillRect(0, 0, DINO_W, DINO_H);
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 18px -apple-system, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("游戏结束", DINO_W/2, DINO_H/2 - 10);
+        ctx.font = "13px -apple-system, sans-serif";
+        ctx.fillText("点击重新开始", DINO_W/2, DINO_H/2 + 18);
+        ctx.textAlign = "start";
+    }
+
+    dinoAnimId = requestAnimationFrame(dinoLoop);
+}
 
 // ============ GAMES ============
 function openGameSelector(){ document.getElementById("game-modal").classList.remove("hidden"); }
