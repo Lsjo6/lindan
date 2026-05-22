@@ -85,6 +85,25 @@
         .weather-card .wfc{text-align:center;font-size:11px;color:var(--text2);flex-shrink:0;min-width:44px}
         .weather-card .wfc .wfct{font-size:13px;color:var(--text);font-weight:500}
 
+        /* Greeting */
+        .greeting-card{background:linear-gradient(135deg,var(--surface2),var(--surface));border-radius:14px;padding:14px 16px;text-align:center;margin-bottom:10px;border:1px solid var(--border)}
+        .greeting-card .greet-emoji{font-size:32px;margin-bottom:4px}
+        .greeting-card .greet-msg{font-size:15px;font-weight:600;color:var(--text)}
+        .greeting-card .greet-date{font-size:12px;color:var(--text2);margin-top:3px}
+
+        /* Game selector */
+        .game-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:12px 0}
+        .game-option{padding:14px 6px;border-radius:14px;border:1px solid var(--border);background:var(--bg);text-align:center;cursor:pointer;transition:all .15s}
+        .game-option:active{background:var(--accent);border-color:var(--accent);color:#fff}
+        .game-option .game-icon{font-size:28px;display:block;margin-bottom:6px}
+        .game-option .game-name{font-size:12.5px;font-weight:500}
+        .game-option .game-desc{font-size:10px;color:var(--text2);margin-top:2px}
+        .game-option:active .game-desc{color:rgba(255,255,255,.7)}
+        .game-bar{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:10px;background:var(--surface2);margin-bottom:6px;font-size:12px}
+        .game-bar.hidden{display:none}
+        .game-bar .game-label{flex:1;color:var(--accent);font-weight:500}
+        .game-bar button{background:var(--border);border:none;color:var(--text);padding:3px 10px;border-radius:8px;font-size:11px;cursor:pointer}
+
         #input-area{padding:10px 14px 16px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0}
         .input-row{display:flex;gap:8px;align-items:flex-end}
         #msg-input{flex:1;padding:10px 14px;border-radius:20px;border:1px solid var(--border);background:var(--input-bg,var(--surface));color:var(--text);font-size:14.5px;resize:none;outline:none;max-height:110px;line-height:1.4;font-family:inherit;transition:border-color .2s}
@@ -178,6 +197,7 @@
 
     <div id="chat-container">
         <div class="welcome" id="welcome-box">
+            <div class="greeting-card" id="greeting-card"></div>
             <div class="welcome-icon"><img src="static/avatar.png" style="width:64px;height:64px;border-radius:18px;object-fit:cover"></div>
             <h2>你好，我是杰少</h2>
             <p>你的全能AI助手，有记忆、有性格、有温度</p>
@@ -187,11 +207,41 @@
                 <button class="quick-btn" onclick="sendQuick('给我推荐3本好书')">📚 推荐好书</button>
                 <button class="quick-btn" onclick="sendQuick('帮我算一下 356 × 789')">🧮 帮我算数</button>
                 <button class="quick-btn" onclick="sendQuick('今天北京天气怎么样')">🌤️ 查天气</button>
+                <button class="quick-btn" onclick="openGameSelector()">🎮 小游戏</button>
             </div>
         </div>
     </div>
 
+    <!-- Game Selector -->
+    <div class="modal-overlay hidden" id="game-modal">
+        <div class="modal">
+            <h3>🎮 选个游戏</h3>
+            <div class="game-grid">
+                <div class="game-option" onclick="startGame('guess')">
+                    <span class="game-icon">🔢</span>
+                    <span class="game-name">猜数字</span>
+                    <span class="game-desc">1-100，看谁猜得快</span>
+                </div>
+                <div class="game-option" onclick="startGame('idiom')">
+                    <span class="game-icon">📝</span>
+                    <span class="game-name">成语接龙</span>
+                    <span class="game-desc">接最后字，同音即可</span>
+                </div>
+                <div class="game-option" onclick="startGame('riddle')">
+                    <span class="game-icon">🕵️</span>
+                    <span class="game-name">猜谜语</span>
+                    <span class="game-desc">动动脑筋猜谜底</span>
+                </div>
+            </div>
+            <button class="btn btn-secondary" style="width:100%;padding:10px" onclick="closeGameSelector()">取消</button>
+        </div>
+    </div>
+
     <div id="input-area">
+        <div class="game-bar hidden" id="game-bar">
+            <span class="game-label" id="game-label"></span>
+            <button onclick="stopGame()">结束游戏</button>
+        </div>
         <div class="mode-indicator" id="mode-indicator"></div>
         <div class="input-row">
             <textarea id="msg-input" rows="1" placeholder="和杰少说点什么..." oninput="autoResize(this);onTyping()"></textarea>
@@ -285,6 +335,23 @@ function renderThemeGrid(){
     }).join("");
 }
 
+// ============ GREETING ============
+function renderGreeting(){
+    const card = document.getElementById("greeting-card");
+    if(!card) return;
+    const now = new Date();
+    const h = now.getHours();
+    let emoji, msg;
+    if(h>=5 && h<9){emoji='🌅';msg='早安！新的一天，元气满满~';}
+    else if(h>=9 && h<12){emoji='☀️';msg='上午好！精神饱满地开始吧！';}
+    else if(h>=12 && h<17){emoji='🌤️';msg='下午好！喝杯茶休息一下~';}
+    else if(h>=17 && h<22){emoji='🌙';msg='晚上好！今天辛苦了~';}
+    else{emoji='🌛';msg='夜深了，早点休息哦~';}
+    const days=['日','一','二','三','四','五','六'];
+    const dateStr = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 星期${days[now.getDay()]}`;
+    card.innerHTML = `<div class="greet-emoji">${emoji}</div><div class="greet-msg">${msg}</div><div class="greet-date">${dateStr}</div>`;
+}
+
 // ============ PERSONALITIES ============
 const PERSONALITIES = {
     default:  {name:'默认',icon:'🤷🏻‍♂️',prompt:'你是杰少，用户的好朋友和全能助手。用中文回复，语气友好温暖，像朋友聊天一样。回复简洁有用。'},
@@ -299,6 +366,7 @@ let conversations = [], activeCid = null;
 let apiKey = "", model = "deepseek-chat", systemPrompt = "";
 let currentPersonality = "default", smartSwitch = true, isLoading = false;
 let journal = [], expenses = [], todos = [], memories = [];
+let activeGame = null; // null | 'guess' | 'idiom' | 'riddle'
 
 // ============ CONVERSATIONS ============
 function loadConvs(){
@@ -473,6 +541,12 @@ function init(){
     try{ expenses = JSON.parse(localStorage.getItem("ld_expenses")||"[]"); }catch(e){}
     try{ todos = JSON.parse(localStorage.getItem("ld_todos")||"[]"); }catch(e){}
     try{ memories = JSON.parse(localStorage.getItem("ld_memories")||"[]"); }catch(e){}
+    activeGame = localStorage.getItem("ld_game") || null;
+    if(activeGame){
+        const names = {guess:'🔢 猜数字',idiom:'📝 成语接龙',riddle:'🕵️ 猜谜语'};
+        document.getElementById("game-bar").classList.remove("hidden");
+        document.getElementById("game-label").textContent = `游戏中：${names[activeGame]}`;
+    }
 
     document.getElementById("api-key-input").value = apiKey;
     document.getElementById("personality-select").value = currentPersonality;
@@ -556,7 +630,7 @@ function renderChat(){
     const welcome = document.getElementById("welcome-box");
     if(msgs.length===0){
         if(!welcome) location.reload();
-        else welcome.style.display="";
+        else { welcome.style.display=""; renderGreeting(); }
     }else{
         if(welcome) welcome.style.display="none";
         msgs.forEach(m=>{
@@ -586,6 +660,49 @@ function showTyping(){
     c.appendChild(d); c.scrollTop=c.scrollHeight;
 }
 function removeTyping(){ const e=document.getElementById("typing-indicator"); if(e) e.remove(); }
+
+// ============ GAMES ============
+function openGameSelector(){ document.getElementById("game-modal").classList.remove("hidden"); }
+function closeGameSelector(){ document.getElementById("game-modal").classList.add("hidden"); }
+
+const GAME_PROMPTS = {
+    guess: "你正在和用户玩「猜数字」游戏。你已经想好了一个1-100之间的数字（请在心里确定一个具体数字，不要告诉用户）。用户每猜一次，你告诉他「大了」「小了」或「猜对了！」。用户猜对后，恭喜他，告诉他总共猜了几次，然后游戏自然结束。你的回复要简短活泼，像朋友玩游戏一样。",
+    idiom: "你正在和用户玩「成语接龙」。规则：你说一个成语，用户需要接一个成语，首字必须和你成语的最后一个字相同（同音同调最好，同音不同调也可以灵活放行）。如果用户接不上或接错了，你可以鼓励他再试。接对了你就继续接下一个。你的回复要简短有趣。现在请说出第一个成语开始游戏。",
+    riddle: "你正在和用户玩「猜谜语」。规则：你想一个有趣的谜语或脑筋急转弯（不要太难），用谜面的形式说出来。用户猜答案，你判断对错。猜对了就恭喜他，然后可以再出一个新谜语。猜不对给予提示。你的回复要简短有趣。现在请说第一个谜语开始游戏。",
+};
+
+function startGame(type){
+    const names = {guess:'🔢 猜数字',idiom:'📝 成语接龙',riddle:'🕵️ 猜谜语'};
+    activeGame = type;
+    closeGameSelector();
+    document.getElementById("game-bar").classList.remove("hidden");
+    document.getElementById("game-label").textContent = `游戏中：${names[type]}`;
+    saveGameState();
+    // Send first AI message
+    const conv = getActiveConv();
+    if(!conv || !activeCid) newConversation();
+    const prompt = type==='guess' ? "我想玩猜数字游戏，请你想好一个1-100的数字，我来猜！"
+                 : type==='idiom' ? "我想玩成语接龙，请你先说一个成语开始吧！"
+                 : "我想猜谜语，请你出一个谜语让我猜！";
+    sendMessage(prompt);
+}
+
+function stopGame(){
+    activeGame = null;
+    saveGameState();
+    document.getElementById("game-bar").classList.add("hidden");
+    showToast("游戏结束，继续聊天吧~");
+}
+
+function getGameContext(){
+    if(!activeGame) return "";
+    return GAME_PROMPTS[activeGame] + "\n\n用户说「结束游戏」就停止游戏，恢复为正常聊天助手模式。";
+}
+
+function saveGameState(){
+    if(activeGame) localStorage.setItem("ld_game", activeGame);
+    else localStorage.removeItem("ld_game");
+}
 
 async function sendMessage(content){
     if(isLoading) return;
@@ -623,8 +740,16 @@ async function sendMessage(content){
     let sys = systemPrompt || PERSONALITIES[currentPersonality].prompt;
     const memCtx = getMemoryContext();
     if(memCtx) sys = sys + "\n\n" + memCtx;
+    // Game context
+    const gameCtx = getGameContext();
+    if(gameCtx) sys = sys + "\n\n" + gameCtx;
     if(weatherData){
         sys = sys + `\n\n[用户查询了${weatherData.city}的天气：当前${weatherData.temp}°C，${weatherData.desc}，湿度${weatherData.humidity}%，体感温度${weatherData.feels_like}°C。请在回复中自然地告诉用户这些天气信息。]`;
+    }
+    // Check for stop game command
+    if(activeGame && /结束游戏|退出游戏|不玩了|停止游戏/.test(text)){
+        activeGame = null; saveGameState();
+        document.getElementById("game-bar").classList.add("hidden");
     }
 
     try{
