@@ -1,15 +1,21 @@
-const CACHE = "ld-v2";
+const CACHE = "ld-v3";
 
 self.addEventListener("install", e => {
     e.waitUntil(
-        caches.open(CACHE).then(c => c.addAll(["/", "/static/manifest.json"]))
+        caches.open(CACHE).then(c => c.addAll(["/lindan/", "/lindan/static/manifest.json"]))
     );
     self.skipWaiting();
 });
 
+self.addEventListener("activate", e => {
+    e.waitUntil(
+        caches.keys().then(keys => Promise.all(
+            keys.filter(k => k !== CACHE).map(k => caches.delete(k))
+        ))
+    );
+});
+
 self.addEventListener("fetch", e => {
-    // API 请求不缓存
-    if (e.request.url.includes("/api/")) return;
     e.respondWith(
         caches.match(e.request).then(r => r || fetch(e.request))
     );
