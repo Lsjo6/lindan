@@ -47,8 +47,7 @@
         .conv-item .conv-info{flex:1;min-width:0}
         .conv-item .conv-title{font-size:13.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .conv-item .conv-meta{font-size:11px;color:var(--text2)}
-        .conv-item .conv-del{opacity:0;background:none;border:none;color:var(--text2);cursor:pointer;font-size:16px;padding:4px;transition:opacity .15s}
-        .conv-item:hover .conv-del{opacity:1}
+        .conv-item .conv-del{background:none;border:none;color:var(--text2);cursor:pointer;font-size:16px;padding:4px}
         .sidebar-footer{padding:12px 16px;border-top:1px solid var(--border)}
 
         #chat-container{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth}
@@ -198,7 +197,8 @@
             </div>
             <div class="sidebar-list" id="sidebar-list"></div>
             <div class="sidebar-footer">
-                <button class="btn btn-primary" style="width:100%;padding:10px" onclick="newConversation()">+ 新建对话</button>
+                <button class="btn btn-primary" style="width:100%;padding:10px;margin-bottom:6px" onclick="newConversation()">+ 新建对话</button>
+                <button class="btn btn-secondary" style="width:100%;padding:8px;font-size:12px;color:#f87171" onclick="deleteCurrentConv()">🗑️ 删除当前对话</button>
             </div>
         </div>
     </div>
@@ -432,11 +432,17 @@ function newConversation(){
 function switchConversation(cid){ activeCid = cid; saveConvs(); renderSidebar(); renderChat(); closeSidebar(); updateBadge(); }
 
 function deleteConversation(cid, e){
-    e.stopPropagation();
+    if(e) e.stopPropagation();
     if(!confirm("确定要删除这个对话吗？")) return;
     conversations = conversations.filter(c=>c.id!==cid);
     if(activeCid===cid) activeCid = conversations.length>0 ? conversations[0].id : null;
     saveConvs(); renderSidebar(); renderChat();
+}
+
+function deleteCurrentConv(){
+    if(!activeCid) return;
+    if(conversations.length <= 1){ showToast("至少保留一个对话"); return; }
+    deleteConversation(activeCid);
 }
 
 function renameConversation(cid, newTitle){
