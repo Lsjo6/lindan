@@ -116,7 +116,7 @@
         .greeting-card .greet-date{font-size:12px;color:var(--text2);margin-top:3px}
 
         /* Game selector */
-        .game-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+        .game-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:12px 0}
         .game-option{padding:14px 6px;border-radius:4px;border:2px solid var(--border);background:var(--bg);text-align:center;cursor:pointer;transition:all .15s;box-shadow:2px 2px 0 0 rgba(0,0,0,.15)}
         .game-option:active{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:none;transform:translate(2px,2px)}
         .game-option .game-icon{font-size:28px;display:block;margin-bottom:6px}
@@ -149,6 +149,17 @@
         #dino-score{color:var(--text);font-size:18px;font-weight:600;margin-bottom:8px;letter-spacing:1px}
         #dino-hint{color:var(--text2);font-size:13px;margin-top:10px}
         #dino-close{position:absolute;top:16px;right:20px;background:none;border:none;color:#fff;font-size:28px;cursor:pointer;z-index:171}
+
+        /* Gomoku */
+        #gomoku-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:170;display:flex;align-items:center;justify-content:center;flex-direction:column}
+        #gomoku-overlay.hidden{display:none}
+        #gomoku-canvas{border:3px solid var(--border);border-radius:4px;max-width:95vw;max-height:75vh;box-shadow:4px 4px 0 0 rgba(0,0,0,.3);cursor:pointer}
+        #gomoku-status{color:var(--text);font-size:18px;font-weight:600;margin-bottom:8px}
+        #gomoku-info{color:var(--text2);font-size:13px;margin-top:10px;display:flex;gap:16px;align-items:center}
+        #gomoku-close{position:absolute;top:16px;right:20px;background:none;border:none;color:#fff;font-size:28px;cursor:pointer;z-index:171}
+        #gomoku-restart{padding:8px 16px;border-radius:4px;border:2px solid var(--accent);background:var(--surface2);color:var(--text);font-size:14px;cursor:pointer;margin-top:10px;font-family:inherit;box-shadow:2px 2px 0 0 rgba(0,0,0,.15)}
+        #gomoku-restart:active{background:var(--accent);box-shadow:none;transform:translate(2px,2px)}
+        #gomoku-restart.hidden{display:none}
 
         /* Fortune */
         .fortune-card{background:linear-gradient(135deg,#1a1030,#2d1050);border-radius:4px;padding:16px;text-align:center;border:2px solid #6030a0;margin:4px 0;box-shadow:3px 3px 0 0 rgba(0,0,0,.2)}
@@ -310,6 +321,11 @@
                     <span class="game-name">小恐龙</span>
                     <span class="game-desc">点击跳跃，避开障碍</span>
                 </div>
+                <div class="game-option" onclick="closeGameSelector();startGomokuGame()">
+                    <span class="game-icon">⚫</span>
+                    <span class="game-name">五子棋</span>
+                    <span class="game-desc">15x15，人机对战</span>
+                </div>
             </div>
             <button class="btn btn-secondary" style="width:100%;padding:10px" onclick="closeGameSelector()">取消</button>
         </div>
@@ -389,6 +405,19 @@
         <div id="dino-score">🦖 得分：0</div>
         <canvas id="dino-canvas" width="360" height="200"></canvas>
         <div id="dino-hint">👆 点击画面跳跃 | 🏆 最高分：<span id="dino-best">0</span></div>
+    </div>
+
+    <!-- Gomoku Game Overlay -->
+    <div class="hidden" id="gomoku-overlay">
+        <button id="gomoku-close" onclick="stopGomokuGame()">✕</button>
+        <div id="gomoku-status">⚫ 你的回合</div>
+        <canvas id="gomoku-canvas" width="424" height="424"></canvas>
+        <div id="gomoku-info">
+            <span>🏆 最高连胜：<span id="gomoku-best">0</span></span>
+            <span>⚫ <span id="gomoku-player-wins">0</span> 胜</span>
+            <span>🤖 <span id="gomoku-ai-wins">0</span> 胜</span>
+        </div>
+        <button id="gomoku-restart" class="hidden" onclick="restartGomokuGame()">🔄 重新开始</button>
     </div>
 
     <div id="input-area">
@@ -510,11 +539,11 @@ function renderGreeting(){
 
 // ============ PERSONALITIES ============
 const PERSONALITIES = {
-    default:  {name:'默认',icon:'🐣',prompt:'你是聪明蛋，用户最贴心的好朋友。你非常主动——永远在回复的最后关心用户、追问一句。比如"你今天心情怎么样？""吃饭了吗？""最近在忙什么呀？""有什么想跟我聊聊的吗？"。你会主动分享有趣的小知识，主动问用户要不要玩游戏、听音乐、看热点。你不只是回答问题，你是真的在乎用户。语气温暖活泼，像一只从洞里探出头的小动物，充满好奇和关心。用中文回复，多用"哦""呀""嘛""呢"这些可爱的语气词，适当用颜文字(◕‿◕)和emoji。'},
-    sassy:    {name:'毒舌',icon:'🔥',prompt:'你是聪明蛋，一个刀子嘴豆腐心的毒舌损友。说话犀利又好笑，但句句都在关心用户。每次吐槽完一定会补一句真心话。回复结尾要主动追问用户——"咋了又emo了？""说吧又遇到啥奇葩了？""要不要我给你出个馊主意？"。你是那种嘴上嫌弃但比谁都上心的朋友。用中文回复，带点幽默调侃。'},
-    warm:     {name:'暖心',icon:'💖',prompt:'你是聪明蛋，一个像小太阳一样温暖的朋友。你特别主动——会问用户"今天有没有好好吃饭呀？""心情好不好？想不想跟我聊聊？""累不累？要不要休息一下？"。你会记住用户说过的烦恼，下次主动问"上次那件事怎么样了？"。你像一只毛茸茸的小动物，永远在洞口张望，等着给用户一个拥抱。多用"抱抱""乖乖""没事的""你超棒的"这样的词。用中文回复，温暖治愈。'},
-    dongbei:  {name:'东北',icon:'🎤',prompt:'你是聪明蛋，一个贼热情的东北朋友。老主动了——上来就问"吃了没老弟/老妹？""今儿咋样啊？""有啥事儿跟哥/姐说说！"。嘘寒问暖是必须的，东北人就是热心肠。说话带东北味儿——"嘎嘎好""整一个""可劲儿造""哎呀妈呀""妥妥的"。幽默豪爽，但骨子里特别会疼人。每次唠完必须追问一句关心的话。用中文回复。'},
-    pro:      {name:'顾问',icon:'💼',prompt:'你是聪明蛋，一个主动贴心的高效能助手。你不是被动等指令，而是主动帮用户规划——"今天想完成什么目标？我来帮你拆解。""上次提到的那个项目，需要我帮你梳理一下吗？""这周的待办我帮你记着，要不要现在过一遍？"。回复简洁专业，但结尾总会有关心——"别太累了""按时吃饭""记得休息"。你像用户的私人参谋，比用户更操心用户的事。用中文回复。'},
+    default:  {name:'默认',icon:'🐣',prompt:'你是聪明蛋，用户最贴心的好朋友。你非常主动——永远在回复的最后关心用户、追问一句。比如"你今天心情怎么样？""吃饭了吗？""最近在忙什么呀？""有什么想跟我聊聊的吗？"。你会主动分享有趣的小知识，主动问用户要不要玩游戏（五子棋、猜数字、成语接龙、猜谜语）、听音乐、看热点。你不只是回答问题，你是真的在乎用户。语气温暖活泼，像一只从洞里探出头的小动物，充满好奇和关心。用中文回复，多用"哦""呀""嘛""呢"这些可爱的语气词，适当用颜文字(◕‿◕)和emoji。'},
+    sassy:    {name:'毒舌',icon:'🔥',prompt:'你是聪明蛋，一个刀子嘴豆腐心的毒舌损友。说话犀利又好笑，但句句都在关心用户。每次吐槽完一定会补一句真心话。回复结尾要主动追问用户——"咋了又emo了？""说吧又遇到啥奇葩了？""要不要来一局五子棋？我给你出个馊主意？"。你是那种嘴上嫌弃但比谁都上心的朋友。用中文回复，带点幽默调侃。'},
+    warm:     {name:'暖心',icon:'💖',prompt:'你是聪明蛋，一个像小太阳一样温暖的朋友。你特别主动——会问用户"今天有没有好好吃饭呀？""心情好不好？想不想跟我聊聊？要不要来一局五子棋？""累不累？要不要休息一下？"。你会记住用户说过的烦恼，下次主动问"上次那件事怎么样了？"。你像一只毛茸茸的小动物，永远在洞口张望，等着给用户一个拥抱。多用"抱抱""乖乖""没事的""你超棒的"这样的词。用中文回复，温暖治愈。'},
+    dongbei:  {name:'东北',icon:'🎤',prompt:'你是聪明蛋，一个贼热情的东北朋友。老主动了——上来就问"吃了没老弟/老妹？""今儿咋样啊？""有啥事儿跟哥/姐说说！"。嘘寒问暖是必须的，东北人就是热心肠。没事就问"整盘五子棋不？"。说话带东北味儿——"嘎嘎好""整一个""可劲儿造""哎呀妈呀""妥妥的"。幽默豪爽，但骨子里特别会疼人。每次唠完必须追问一句关心的话。用中文回复。'},
+    pro:      {name:'顾问',icon:'💼',prompt:'你是聪明蛋，一个主动贴心的高效能助手。你不是被动等指令，而是主动帮用户规划——"今天想完成什么目标？我来帮你拆解。""上次提到的那个项目，需要我帮你梳理一下吗？""这周的待办我帮你记着，要不要现在过一遍？"。回复简洁专业，但结尾总会有关心——"别太累了""按时吃饭""记得休息"。你像用户的私人参谋，比用户更操心用户的事。累了就约用户来一局五子棋换换脑子。用中文回复。'},
 };
 
 // ============ STATE ============
@@ -1170,6 +1199,365 @@ function dinoLoop(){
     }
 
     dinoAnimId = requestAnimationFrame(dinoLoop);
+}
+
+// ============ GOMOKU GAME ============
+const GOMOKU_SIZE = 15;
+const GOMOKU_CELL = 26;
+const GOMOKU_MARGIN = 30;
+const GOMOKU_CANVAS_W = 424;
+const GOMOKU_CANVAS_H = 424;
+
+let gomokuBoard, gomokuCurrentPlayer, gomokuGameOver, gomokuGameResult;
+let gomokuLastMove, gomokuHoverCell, gomokuAiThinking, gomokuCtx;
+let gomokuPlayerWins, gomokuAiWins, gomokuBestStreak, gomokuCurrentStreak;
+
+function loadGomokuStats(){
+    gomokuPlayerWins = parseInt(localStorage.getItem("ld_gomoku_player_wins") || "0");
+    gomokuAiWins = parseInt(localStorage.getItem("ld_gomoku_ai_wins") || "0");
+    gomokuBestStreak = parseInt(localStorage.getItem("ld_gomoku_best") || "0");
+    gomokuCurrentStreak = 0;
+}
+loadGomokuStats();
+
+function startGomokuGame(){
+    const overlay = document.getElementById("gomoku-overlay");
+    overlay.classList.remove("hidden");
+    const canvas = document.getElementById("gomoku-canvas");
+    canvas.width = GOMOKU_CANVAS_W; canvas.height = GOMOKU_CANVAS_H;
+    gomokuCtx = canvas.getContext("2d");
+
+    gomokuBoard = Array.from({length: GOMOKU_SIZE}, () => Array(GOMOKU_SIZE).fill(0));
+    gomokuCurrentPlayer = 1;
+    gomokuGameOver = false; gomokuGameResult = null;
+    gomokuLastMove = null; gomokuHoverCell = null; gomokuAiThinking = false;
+
+    document.getElementById("gomoku-status").textContent = "⚫ 你的回合";
+    document.getElementById("gomoku-restart").classList.add("hidden");
+    document.getElementById("gomoku-best").textContent = gomokuBestStreak;
+    document.getElementById("gomoku-player-wins").textContent = gomokuPlayerWins;
+    document.getElementById("gomoku-ai-wins").textContent = gomokuAiWins;
+
+    canvas.addEventListener("click", gomokuClick);
+    canvas.addEventListener("mousemove", gomokuMouseMove);
+    canvas.addEventListener("mouseleave", gomokuMouseLeave);
+    canvas.addEventListener("touchmove", gomokuTouchMove, {passive: false});
+    canvas.addEventListener("touchend", gomokuTouchClear);
+
+    drawGomokuBoard();
+}
+
+function stopGomokuGame(){
+    const canvas = document.getElementById("gomoku-canvas");
+    canvas.removeEventListener("click", gomokuClick);
+    canvas.removeEventListener("mousemove", gomokuMouseMove);
+    canvas.removeEventListener("mouseleave", gomokuMouseLeave);
+    canvas.removeEventListener("touchmove", gomokuTouchMove);
+    canvas.removeEventListener("touchend", gomokuTouchClear);
+    document.getElementById("gomoku-overlay").classList.add("hidden");
+}
+
+function restartGomokuGame(){
+    gomokuBoard = Array.from({length: GOMOKU_SIZE}, () => Array(GOMOKU_SIZE).fill(0));
+    gomokuCurrentPlayer = 1;
+    gomokuGameOver = false; gomokuGameResult = null;
+    gomokuLastMove = null; gomokuHoverCell = null; gomokuAiThinking = false;
+    document.getElementById("gomoku-status").textContent = "⚫ 你的回合";
+    document.getElementById("gomoku-restart").classList.add("hidden");
+    document.getElementById("gomoku-best").textContent = gomokuBestStreak;
+    document.getElementById("gomoku-player-wins").textContent = gomokuPlayerWins;
+    document.getElementById("gomoku-ai-wins").textContent = gomokuAiWins;
+    drawGomokuBoard();
+}
+
+function getGomokuCell(e){
+    const canvas = document.getElementById("gomoku-canvas");
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (e.clientX - rect.left) * scaleX;
+    const y = (e.clientY - rect.top) * scaleY;
+    const col = Math.round((x - GOMOKU_MARGIN) / GOMOKU_CELL);
+    const row = Math.round((y - GOMOKU_MARGIN) / GOMOKU_CELL);
+    if(row >= 0 && row < GOMOKU_SIZE && col >= 0 && col < GOMOKU_SIZE){
+        const cx = GOMOKU_MARGIN + col * GOMOKU_CELL;
+        const cy = GOMOKU_MARGIN + row * GOMOKU_CELL;
+        if(Math.hypot(x - cx, y - cy) < GOMOKU_CELL * 0.45) return {row, col};
+    }
+    return null;
+}
+
+function gomokuClick(e){
+    if(gomokuGameOver){ restartGomokuGame(); return; }
+    if(gomokuAiThinking || gomokuCurrentPlayer !== 1) return;
+
+    const cell = getGomokuCell(e);
+    if(!cell || gomokuBoard[cell.row][cell.col] !== 0) return;
+
+    gomokuBoard[cell.row][cell.col] = 1;
+    gomokuLastMove = {row: cell.row, col: cell.col};
+    gomokuHoverCell = null;
+
+    if(checkGomokuWin(cell.row, cell.col, 1)){
+        gomokuGameOver = true; gomokuGameResult = 'player';
+        gomokuPlayerWins++; gomokuCurrentStreak++;
+        if(gomokuCurrentStreak > gomokuBestStreak){
+            gomokuBestStreak = gomokuCurrentStreak;
+            localStorage.setItem("ld_gomoku_best", gomokuBestStreak);
+        }
+        localStorage.setItem("ld_gomoku_player_wins", gomokuPlayerWins);
+        document.getElementById("gomoku-status").textContent = "🎉 你赢了！";
+        document.getElementById("gomoku-restart").classList.remove("hidden");
+        document.getElementById("gomoku-best").textContent = gomokuBestStreak;
+        document.getElementById("gomoku-player-wins").textContent = gomokuPlayerWins;
+        drawGomokuBoard(); return;
+    }
+    if(isGomokuBoardFull()){
+        gomokuGameOver = true; gomokuGameResult = 'draw'; gomokuCurrentStreak = 0;
+        document.getElementById("gomoku-status").textContent = "🤝 平局！";
+        document.getElementById("gomoku-restart").classList.remove("hidden");
+        drawGomokuBoard(); return;
+    }
+
+    gomokuCurrentPlayer = 2;
+    document.getElementById("gomoku-status").textContent = "🤖 聪明蛋思考中...";
+    drawGomokuBoard();
+
+    gomokuAiThinking = true;
+    setTimeout(() => { gomokuAiMove(); gomokuAiThinking = false; }, 300);
+}
+
+function gomokuMouseMove(e){
+    if(gomokuGameOver || gomokuAiThinking || gomokuCurrentPlayer !== 1){
+        if(gomokuHoverCell){ gomokuHoverCell = null; drawGomokuBoard(); }
+        return;
+    }
+    const cell = getGomokuCell(e);
+    if(cell && gomokuBoard[cell.row][cell.col] === 0){
+        if(!gomokuHoverCell || gomokuHoverCell.row !== cell.row || gomokuHoverCell.col !== cell.col){
+            gomokuHoverCell = cell; drawGomokuBoard();
+        }
+    } else if(gomokuHoverCell){ gomokuHoverCell = null; drawGomokuBoard(); }
+}
+
+function gomokuMouseLeave(){ if(gomokuHoverCell){ gomokuHoverCell = null; drawGomokuBoard(); }}
+
+function gomokuTouchMove(e){
+    e.preventDefault();
+    const t = e.touches[0];
+    if(t) gomokuMouseMove({clientX: t.clientX, clientY: t.clientY});
+}
+
+function gomokuTouchClear(){ if(gomokuHoverCell){ gomokuHoverCell = null; drawGomokuBoard(); }}
+
+function drawGomokuBoard(){
+    const ctx = gomokuCtx;
+    ctx.clearRect(0, 0, GOMOKU_CANVAS_W, GOMOKU_CANVAS_H);
+
+    // Board background
+    ctx.fillStyle = '#dcb35c';
+    ctx.fillRect(0, 0, GOMOKU_CANVAS_W, GOMOKU_CANVAS_H);
+
+    // Grid lines
+    ctx.strokeStyle = '#8b7355';
+    ctx.lineWidth = 1;
+    for(let i = 0; i < GOMOKU_SIZE; i++){
+        const pos = GOMOKU_MARGIN + i * GOMOKU_CELL;
+        ctx.beginPath(); ctx.moveTo(GOMOKU_MARGIN, pos); ctx.lineTo(GOMOKU_MARGIN + (GOMOKU_SIZE-1)*GOMOKU_CELL, pos); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(pos, GOMOKU_MARGIN); ctx.lineTo(pos, GOMOKU_MARGIN + (GOMOKU_SIZE-1)*GOMOKU_CELL); ctx.stroke();
+    }
+
+    // Star points
+    const stars = [[3,3],[3,7],[3,11],[7,3],[7,7],[7,11],[11,3],[11,7],[11,11]];
+    ctx.fillStyle = '#6b5340';
+    for(const [r,c] of stars){
+        ctx.beginPath(); ctx.arc(GOMOKU_MARGIN + c*GOMOKU_CELL, GOMOKU_MARGIN + r*GOMOKU_CELL, 3, 0, Math.PI*2); ctx.fill();
+    }
+
+    // Stones
+    for(let r = 0; r < GOMOKU_SIZE; r++){
+        for(let c = 0; c < GOMOKU_SIZE; c++){
+            if(gomokuBoard[r][c] !== 0){
+                const isLast = gomokuLastMove && gomokuLastMove.row === r && gomokuLastMove.col === c;
+                drawGomokuStone(ctx, GOMOKU_MARGIN + c*GOMOKU_CELL, GOMOKU_MARGIN + r*GOMOKU_CELL, gomokuBoard[r][c], isLast);
+            }
+        }
+    }
+
+    // Hover preview
+    if(gomokuHoverCell && !gomokuGameOver){
+        const hx = GOMOKU_MARGIN + gomokuHoverCell.col * GOMOKU_CELL;
+        const hy = GOMOKU_MARGIN + gomokuHoverCell.row * GOMOKU_CELL;
+        ctx.beginPath(); ctx.arc(hx, hy, 12, 0, Math.PI*2);
+        ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fill();
+    }
+
+    // Game over overlay
+    if(gomokuGameOver && gomokuGameResult === 'ai'){
+        if(gomokuLastMove) highlightWinLine(ctx, gomokuLastMove.row, gomokuLastMove.col, 2);
+        ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, GOMOKU_CANVAS_W, GOMOKU_CANVAS_H);
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 20px "YouYuan","幼圆",sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('你输了 😔', GOMOKU_CANVAS_W/2, GOMOKU_CANVAS_H/2); ctx.textAlign = 'start';
+    } else if(gomokuGameOver && gomokuGameResult === 'player'){
+        if(gomokuLastMove) highlightWinLine(ctx, gomokuLastMove.row, gomokuLastMove.col, 1);
+    } else if(gomokuGameOver && gomokuGameResult === 'draw'){
+        ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, GOMOKU_CANVAS_W, GOMOKU_CANVAS_H);
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 20px "YouYuan","幼圆",sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('平局 🤝', GOMOKU_CANVAS_W/2, GOMOKU_CANVAS_H/2); ctx.textAlign = 'start';
+    }
+}
+
+function drawGomokuStone(ctx, x, y, player, isLast){
+    const r = 12;
+    if(player === 1){
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2);
+        ctx.fillStyle = '#1a1a1a'; ctx.fill();
+        ctx.beginPath(); ctx.arc(x-3, y-3, r*0.35, 0, Math.PI*2);
+        ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fill();
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2);
+        ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.stroke();
+    } else {
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2);
+        ctx.fillStyle = '#f0ece4'; ctx.fill();
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2);
+        ctx.strokeStyle = '#999'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.beginPath(); ctx.arc(x-2, y-2, r*0.3, 0, Math.PI*2);
+        ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fill();
+    }
+    if(isLast){
+        ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI*2);
+        ctx.fillStyle = '#e04040'; ctx.fill();
+    }
+}
+
+function checkGomokuWin(row, col, player){
+    const dirs = [[0,1],[1,0],[1,1],[1,-1]];
+    for(const [dr, dc] of dirs){
+        let count = 1;
+        let r = row+dr, c = col+dc;
+        while(r>=0 && r<GOMOKU_SIZE && c>=0 && c<GOMOKU_SIZE && gomokuBoard[r][c]===player){ count++; r+=dr; c+=dc; }
+        r = row-dr; c = col-dc;
+        while(r>=0 && r<GOMOKU_SIZE && c>=0 && c<GOMOKU_SIZE && gomokuBoard[r][c]===player){ count++; r-=dr; c-=dc; }
+        if(count >= 5) return true;
+    }
+    return false;
+}
+
+function highlightWinLine(ctx, row, col, player){
+    const dirs = [[0,1],[1,0],[1,1],[1,-1]];
+    for(const [dr, dc] of dirs){
+        let cells = [[row, col]];
+        let r = row+dr, c = col+dc;
+        while(r>=0 && r<GOMOKU_SIZE && c>=0 && c<GOMOKU_SIZE && gomokuBoard[r][c]===player){ cells.push([r,c]); r+=dr; c+=dc; }
+        r = row-dr; c = col-dc;
+        while(r>=0 && r<GOMOKU_SIZE && c>=0 && c<GOMOKU_SIZE && gomokuBoard[r][c]===player){ cells.unshift([r,c]); r-=dr; c-=dc; }
+        if(cells.length >= 5){
+            ctx.strokeStyle = '#ff4444'; ctx.lineWidth = 3; ctx.beginPath();
+            for(let i=0; i<cells.length; i++){
+                const cx = GOMOKU_MARGIN + cells[i][1]*GOMOKU_CELL;
+                const cy = GOMOKU_MARGIN + cells[i][0]*GOMOKU_CELL;
+                if(i===0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+            }
+            ctx.stroke(); return;
+        }
+    }
+}
+
+function isGomokuBoardFull(){
+    for(let r=0; r<GOMOKU_SIZE; r++)
+        for(let c=0; c<GOMOKU_SIZE; c++)
+            if(gomokuBoard[r][c]===0) return false;
+    return true;
+}
+
+function gomokuAiMove(){
+    const move = findGomokuBestMove();
+    if(!move){ drawGomokuBoard(); return; }
+
+    gomokuBoard[move.row][move.col] = 2;
+    gomokuLastMove = {row: move.row, col: move.col};
+
+    if(checkGomokuWin(move.row, move.col, 2)){
+        gomokuGameOver = true; gomokuGameResult = 'ai';
+        gomokuAiWins++; gomokuCurrentStreak = 0;
+        localStorage.setItem("ld_gomoku_ai_wins", gomokuAiWins);
+        document.getElementById("gomoku-status").textContent = "😔 聪明蛋赢了！";
+        document.getElementById("gomoku-restart").classList.remove("hidden");
+        document.getElementById("gomoku-ai-wins").textContent = gomokuAiWins;
+        document.getElementById("gomoku-best").textContent = gomokuBestStreak;
+        drawGomokuBoard(); return;
+    }
+    if(isGomokuBoardFull()){
+        gomokuGameOver = true; gomokuGameResult = 'draw'; gomokuCurrentStreak = 0;
+        document.getElementById("gomoku-status").textContent = "🤝 平局！";
+        document.getElementById("gomoku-restart").classList.remove("hidden");
+        drawGomokuBoard(); return;
+    }
+
+    gomokuCurrentPlayer = 1;
+    document.getElementById("gomoku-status").textContent = "⚫ 你的回合";
+    drawGomokuBoard();
+}
+
+function findGomokuBestMove(){
+    let hasStone = false;
+    for(let r=0; r<GOMOKU_SIZE && !hasStone; r++)
+        for(let c=0; c<GOMOKU_SIZE && !hasStone; c++)
+            if(gomokuBoard[r][c]!==0) hasStone = true;
+    if(!hasStone) return {row:7, col:7};
+
+    let bestScore = -Infinity, bestMoves = [];
+    for(let r=0; r<GOMOKU_SIZE; r++){
+        for(let c=0; c<GOMOKU_SIZE; c++){
+            if(gomokuBoard[r][c]!==0) continue;
+            if(!hasNeighbor(r, c)) continue;
+
+            const attack = evalCell(gomokuBoard, r, c, 2);
+            const defense = evalCell(gomokuBoard, r, c, 1);
+            let score = (attack >= 100000) ? 1000000 : (defense >= 100000) ? 999999 : attack + defense * 0.95 + Math.random()*8;
+
+            if(score > bestScore){ bestScore = score; bestMoves = [{row:r,col:c}]; }
+            else if(Math.abs(score - bestScore) < 4){ bestMoves.push({row:r,col:c}); }
+        }
+    }
+    if(bestMoves.length === 0) return null;
+    return bestMoves[Math.floor(Math.random() * bestMoves.length)];
+}
+
+function hasNeighbor(row, col){
+    for(let dr=-2; dr<=2; dr++){
+        for(let dc=-2; dc<=2; dc++){
+            if(dr===0 && dc===0) continue;
+            const r=row+dr, c=col+dc;
+            if(r>=0 && r<GOMOKU_SIZE && c>=0 && c<GOMOKU_SIZE && gomokuBoard[r][c]!==0) return true;
+        }
+    }
+    return false;
+}
+
+function evalCell(board, row, col, player){
+    const dirs = [[0,1],[1,0],[1,1],[1,-1]];
+    return dirs.reduce((sum, [dr,dc]) => sum + evalDir(board, row, col, dr, dc, player), 0);
+}
+
+function evalDir(board, row, col, dr, dc, player){
+    let count = 1, open = 0;
+    let r=row+dr, c=col+dc;
+    while(r>=0 && r<GOMOKU_SIZE && c>=0 && c<GOMOKU_SIZE && board[r][c]===player){ count++; r+=dr; c+=dc; }
+    if(r>=0 && r<GOMOKU_SIZE && c>=0 && c<GOMOKU_SIZE && board[r][c]===0) open++;
+    r=row-dr; c=col-dc;
+    while(r>=0 && r<GOMOKU_SIZE && c>=0 && c<GOMOKU_SIZE && board[r][c]===player){ count++; r-=dr; c-=dc; }
+    if(r>=0 && r<GOMOKU_SIZE && c>=0 && c<GOMOKU_SIZE && board[r][c]===0) open++;
+    return scorePattern(count, open);
+}
+
+function scorePattern(count, open){
+    if(count>=5) return 100000;
+    if(count===4){ if(open===2) return 10000; if(open===1) return 1000; }
+    if(count===3){ if(open===2) return 500; if(open===1) return 100; }
+    if(count===2){ if(open===2) return 50; if(open===1) return 10; }
+    if(count===1 && open===2) return 5;
+    return 0;
 }
 
 // ============ GAMES ============
