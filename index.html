@@ -291,6 +291,7 @@
                 <button class="quick-btn" onclick="showFortune()">🔮 今日运势</button>
                 <button class="quick-btn" onclick="openDecider()">🤔 做决定</button>
                 <button class="quick-btn" onclick="openTranslator()">📝 翻译</button>
+                <button class="quick-btn" onclick="startGomokuGame()">⚫ 五子棋</button>
                 <button class="quick-btn" onclick="showHotNews()">📰 热点</button>
             </div>
         </div>
@@ -416,6 +417,10 @@
             <span>🏆 最高连胜：<span id="gomoku-best">0</span></span>
             <span>⚫ <span id="gomoku-player-wins">0</span> 胜</span>
             <span>🤖 <span id="gomoku-ai-wins">0</span> 胜</span>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:8px">
+            <button id="gomoku-undo" onclick="gomokuUndo()" style="padding:8px 16px;border-radius:4px;border:2px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;cursor:pointer;font-family:inherit;box-shadow:2px 2px 0 0 rgba(0,0,0,.15)">↩ 悔棋</button>
+            <button id="gomoku-resign" onclick="gomokuResign()" style="padding:8px 16px;border-radius:4px;border:2px solid #f87171;background:var(--surface2);color:#f87171;font-size:14px;cursor:pointer;font-family:inherit;box-shadow:2px 2px 0 0 rgba(0,0,0,.15)">🏳️ 认输</button>
         </div>
         <button id="gomoku-restart" class="hidden" onclick="restartGomokuGame()">🔄 重新开始</button>
     </div>
@@ -1211,6 +1216,7 @@ const GOMOKU_CANVAS_H = 424;
 let gomokuBoard, gomokuCurrentPlayer, gomokuGameOver, gomokuGameResult;
 let gomokuLastMove, gomokuHoverCell, gomokuAiThinking, gomokuCtx;
 let gomokuPlayerWins, gomokuAiWins, gomokuBestStreak, gomokuCurrentStreak;
+let gomokuHistory = [];
 
 function loadGomokuStats(){
     gomokuPlayerWins = parseInt(localStorage.getItem("ld_gomoku_player_wins") || "0");
@@ -1231,6 +1237,7 @@ function startGomokuGame(){
     gomokuCurrentPlayer = 1;
     gomokuGameOver = false; gomokuGameResult = null;
     gomokuLastMove = null; gomokuHoverCell = null; gomokuAiThinking = false;
+    gomokuHistory = [];
 
     document.getElementById("gomoku-status").textContent = "⚫ 你的回合";
     document.getElementById("gomoku-restart").classList.add("hidden");
@@ -1262,6 +1269,7 @@ function restartGomokuGame(){
     gomokuCurrentPlayer = 1;
     gomokuGameOver = false; gomokuGameResult = null;
     gomokuLastMove = null; gomokuHoverCell = null; gomokuAiThinking = false;
+    gomokuHistory = [];
     document.getElementById("gomoku-status").textContent = "⚫ 你的回合";
     document.getElementById("gomoku-restart").classList.add("hidden");
     document.getElementById("gomoku-best").textContent = gomokuBestStreak;
@@ -1296,6 +1304,7 @@ function gomokuClick(e){
 
     gomokuBoard[cell.row][cell.col] = 1;
     gomokuLastMove = {row: cell.row, col: cell.col};
+    gomokuHistory.push({row: cell.row, col: cell.col, player: 1});
     gomokuHoverCell = null;
 
     if(checkGomokuWin(cell.row, cell.col, 1)){
@@ -1476,6 +1485,7 @@ function gomokuAiMove(){
 
     gomokuBoard[move.row][move.col] = 2;
     gomokuLastMove = {row: move.row, col: move.col};
+    gomokuHistory.push({row: move.row, col: move.col, player: 2});
 
     if(checkGomokuWin(move.row, move.col, 2)){
         gomokuGameOver = true; gomokuGameResult = 'ai';
@@ -1496,6 +1506,33 @@ function gomokuAiMove(){
 
     gomokuCurrentPlayer = 1;
     document.getElementById("gomoku-status").textContent = "⚫ 你的回合";
+    drawGomokuBoard();
+}
+
+function gomokuUndo(){
+    if(gomokuGameOver || gomokuAiThinking || gomokuCurrentPlayer !== 1) return;
+    if(gomokuHistory.length < 2) return; // Need at least one player+AI pair to undo
+    // Undo AI move
+    const aiMove = gomokuHistory.pop();
+    gomokuBoard[aiMove.row][aiMove.col] = 0;
+    // Undo player move
+    const playerMove = gomokuHistory.pop();
+    gomokuBoard[playerMove.row][playerMove.col] = 0;
+    // Restore last move marker
+    gomokuLastMove = gomokuHistory.length > 0 ? {row: gomokuHistory[gomokuHistory.length-1].row, col: gomokuHistory[gomokuHistory.length-1].col} : null;
+    document.getElementById("gomoku-status").textContent = "⚫ 你的回合";
+    drawGomokuBoard();
+}
+
+function gomokuResign(){
+    if(gomokuGameOver || gomokuAiThinking) return;
+    gomokuGameOver = true; gomokuGameResult = 'ai';
+    gomokuAiWins++; gomokuCurrentStreak = 0;
+    localStorage.setItem("ld_gomoku_ai_wins", gomokuAiWins);
+    document.getElementById("gomoku-status").textContent = "🏳️ 你认输了";
+    document.getElementById("gomoku-restart").classList.remove("hidden");
+    document.getElementById("gomoku-ai-wins").textContent = gomokuAiWins;
+    document.getElementById("gomoku-best").textContent = gomokuBestStreak;
     drawGomokuBoard();
 }
 
