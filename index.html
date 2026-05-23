@@ -1292,8 +1292,62 @@ function cancelPhoto(){
 }
 function getVoice(){
     if(!selectedVoice) return null;
-    try{ const voices = speechSynthesis.getVoices(); return voices.find(v=>v.name===selectedVoice)||null; }catch(e){return null;}
+    try{
+        const voices = speechSynthesis.getVoices();
+        // Exact name match first, then substring match (for hardcoded names like "Microsoft Huihui - 慧慧")
+        let v = voices.find(v=>v.name===selectedVoice);
+        if(!v) v = voices.find(v=>selectedVoice.includes(v.name)||v.name.includes(selectedVoice));
+        return v || null;
+    }catch(e){return null;}
 }
+function populateVoices(){
+    const sel = document.getElementById("voice-select");
+    if(!sel) return;
+    const stock = [
+        {n:"Microsoft Huihui - 慧慧",l:"zh-CN"},
+        {n:"Microsoft Kangkang - 康康",l:"zh-CN"},
+        {n:"Microsoft Yaoyao - 瑶瑶",l:"zh-CN"},
+        {n:"Microsoft Zira - 英文女",l:"en-US"},
+        {n:"Microsoft David - 英文男",l:"en-US"},
+        {n:"Microsoft Mark - 英文男",l:"en-US"},
+        {n:"Google 普通话",l:"zh-CN"},
+        {n:"Google 粤语",l:"zh-HK"},
+        {n:"Google 英语(美国)",l:"en-US"},
+        {n:"Google 日本語",l:"ja-JP"},
+    ];
+    sel.innerHTML = '<option value="">默认音色</option>';
+    const sys = speechSynthesis.getVoices();
+    // Add actual system voices first
+    if(sys.length>0){
+        sys.forEach(v => {
+            const o = document.createElement("option");
+            o.value = v.name; o.textContent = v.name + " (" + v.lang + ")";
+            if(v.name===selectedVoice) o.selected=true;
+            sel.appendChild(o);
+        });
+    }
+    // Add stock voices not already in system list
+    if(sys.length===0) sel.innerHTML += '<option disabled>── 常用音色 ──</option>';
+    const sysNames = new Set(sys.map(v=>v.name));
+    stock.forEach(v => {
+        if(!sysNames.has(v.n)){
+            const o = document.createElement("option");
+            o.value = v.n; o.textContent = v.n;
+            if(v.n===selectedVoice) o.selected=true;
+            sel.appendChild(o);
+        }
+    });
+}
+function previewVoice(){
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance("你好，我是杰少，这是试听。");
+    const v = getVoice(); if(v) u.voice = v;
+    u.rate = 0.9;
+    speechSynthesis.speak(u);
+}
+function autoResize(el){ el.style.height="auto"; el.style.height=Math.min(el.scrollHeight,110)+"px"; }
+function saveChat(){ saveConvs(); }
+
 function speakText(btn){
     speechSynthesis.cancel();
     const text = btn.getAttribute("data-text");
@@ -1314,30 +1368,6 @@ function readAloud(){
     const v = getVoice(); if(v) u.voice = v;
     speechSynthesis.speak(u);
 }
-function populateVoices(){
-    const sel = document.getElementById("voice-select");
-    if(!sel) return;
-    const voices = speechSynthesis.getVoices();
-    sel.innerHTML = '<option value="">默认音色</option>';
-    if(voices.length === 0){ sel.innerHTML += '<option disabled>未检测到音色，点🔄刷新</option>'; return; }
-    voices.forEach(v => {
-        const opt = document.createElement("option");
-        opt.value = v.name;
-        opt.textContent = `${v.name} (${v.lang})`;
-        if(v.name === selectedVoice) opt.selected = true;
-        sel.appendChild(opt);
-    });
-}
-function previewVoice(){
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance("你好，我是杰少，这是试听。Hello, this is a test.");
-    const v = getVoice(); if(v) u.voice = v;
-    u.lang = "zh-CN"; u.rate = 0.9;
-    speechSynthesis.speak(u);
-}
-function autoResize(el){ el.style.height="auto"; el.style.height=Math.min(el.scrollHeight,110)+"px"; }
-function saveChat(){ saveConvs(); }
-
 function clearChat(){
     const conv = getActiveConv();
     if(!conv || conv.messages.length===0) return;
