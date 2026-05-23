@@ -403,6 +403,10 @@
             </select>
             <label>API 密钥 (DeepSeek)</label>
             <input type="password" id="api-key-input" placeholder="sk-...">
+            <label>画图密钥 (通义万相)</label>
+            <input type="password" id="wanx-key-input" placeholder="sk-...">
+            <label>画图代理 (Cloudflare Worker)</label>
+            <input type="text" id="proxy-url-input" placeholder="https://xxx.workers.dev">
             <label>自定义提示词（会覆盖人格设定）</label>
             <textarea id="system-prompt-input" rows="2" placeholder="留空则使用选中的人格设定..."></textarea>
             <label>智能切换</label>
@@ -490,7 +494,7 @@ const PERSONALITIES = {
 
 // ============ STATE ============
 let conversations = [], activeCid = null;
-let apiKey = "", model = "deepseek-v4-flash", systemPrompt = "";
+let apiKey = "", wanxKey = "", proxyUrl = "", model = "deepseek-v4-flash", systemPrompt = "";
 let currentPersonality = "default", smartSwitch = true, isLoading = false;
 let journal = [], expenses = [], todos = [], memories = [];
 let activeGame = null; // null | 'guess' | 'idiom' | 'riddle'
@@ -664,10 +668,31 @@ async function callDeepSeek(apiKey, model, messages, systemText){
 // ============ IMAGE GENERATION ============
 const IMG_KW = /画|生成.*图|画.*图|帮我画|给我画|画个|画一张|画幅|生成.*图片/;
 
-function generateImage(prompt){
-    const raw = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&nologo=true`;
-    // Use image proxy to bypass China firewall
-    return `https://images.weserv.nl/?url=${encodeURIComponent(raw)}`;
+async function generateImage(prompt){
+    if(!proxyUrl) throw new Error("请先在设置中填入画图代理地址");
+    const base = proxyUrl;
+    const resp = await fetch(`${base}/api/v1/services/aigc/text2image/image-synthesis`,{
+        method:"POST",
+        headers:{"Authorization":`Bearer ${wanxKey}`,"Content-Type":"application/json","X-DashScope-Async":"enable"},
+        body:JSON.stringify({model:"wan2.2-t2i-flash",input:{prompt},parameters:{n:1,size:"1024*1024",prompt_extend:true,watermark:false}}),
+    });
+    if(!resp.ok){
+        const err = await resp.json().catch(()=>({}));
+        throw new Error(err.message||`API错误(${resp.status})`);
+    }
+    const data = await resp.json();
+    const taskId = data.output?.task_id;
+    if(!taskId) throw new Error("未获取任务ID："+JSON.stringify(data).slice(0,100));
+    for(let i=0;i<60;i++){
+        await new Promise(r=>setTimeout(r,2000));
+        const poll = await fetch(`${base}/api/v1/tasks/${taskId}`,{
+            headers:{"Authorization":`Bearer ${wanxKey}`},
+        });
+        const pdata = await poll.json();
+        if(pdata.output?.task_status==="SUCCEEDED") return pdata.output.results[0].url;
+        if(pdata.output?.task_status==="FAILED") throw new Error(pdata.output.message||"生成失败");
+    }
+    throw new Error("生成超时（2分钟），请重试");
 }
 
 // ============ INIT ============
@@ -676,6 +701,8 @@ function init(){
     loadConvs();
 
     apiKey = localStorage.getItem("ld_api_key")||"";
+    wanxKey = localStorage.getItem("ld_wanx_key")||"";
+    proxyUrl = localStorage.getItem("ld_proxy_url")||"";
     model = localStorage.getItem("ld_model")||"deepseek-v4-flash";
     systemPrompt = localStorage.getItem("ld_system")||"";
     currentPersonality = localStorage.getItem("ld_personality")||"default";
@@ -692,6 +719,8 @@ function init(){
     }
 
     document.getElementById("api-key-input").value = apiKey;
+    document.getElementById("wanx-key-input").value = wanxKey;
+    document.getElementById("proxy-url-input").value = proxyUrl;
     document.getElementById("personality-select").value = currentPersonality;
     document.getElementById("smart-switch-select").value = smartSwitch?"on":"off";
     document.getElementById("provider-select").value = model;
@@ -1192,7 +1221,7 @@ async function sendMessage(content){
     if(conv && conv.messages.length===0){ conv.title = autoTitle(text); saveConvs(); renderSidebar(); }
 
     // Image generation check
-    const isImgReq = IMG_KW.test(text);
+    const isImgReq = IMG_KW.test(text) && wanxKey && proxyUrl;
     // Weather check
     let weatherData = null;
     if(WEATHER_KW.test(text)) weatherData = await checkWeather(text);
@@ -1202,12 +1231,19 @@ async function sendMessage(content){
     conv.messages.push(msgObj);
     saveConvs(); renderChat();
 
-    // Handle image generation (Pollinations.ai via proxy)
+    // Handle image generation (通义万相 via Cloudflare Worker proxy)
     if(isImgReq){
-        const proxyUrl = generateImage(text);
-        const directUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(text)}?width=1024&height=1024&nologo=true`;
-        conv.messages.push({role:"assistant",content:`<div class="img-wrap"><div class="img-loading">AI 正在生成图片...</div><img src="${proxyUrl}" alt="AI生成" onload="this.previousElementSibling.remove();this.style.display=''" onerror="this.previousElementSibling.textContent='代理加载失败，试试直接链接';this.remove()" style="display:none" referrerpolicy="no-referrer"><div style="display:flex;gap:12px;flex-wrap:wrap"><a href="${proxyUrl}" target="_blank" style="font-size:12px;color:var(--accent)">代理链接</a><a href="${directUrl}" target="_blank" style="font-size:12px;color:var(--accent)">直接链接</a></div></div><span style="font-size:11px;color:var(--text2)">AI 生成 | Pollinations.ai (免费)</span>`});
-        saveConvs(); renderChat();
+        showTyping();
+        try{
+            const imgUrl = await generateImage(text);
+            removeTyping();
+            conv.messages.push({role:"assistant",content:`<img src="${imgUrl}" alt="AI生成" onerror="this.onerror=null;this.nextElementSibling.style.display='';this.remove()" style="max-width:100%;border-radius:10px;cursor:pointer"><span style="display:none;font-size:12px;color:var(--text2)">图片加载失败，<a href="${imgUrl}" target="_blank">点此打开</a></span><br><span style="font-size:11px;color:var(--text2)">AI 生成 | 通义万相</span>`});
+            saveConvs(); renderChat();
+        }catch(e){
+            removeTyping();
+            conv.messages.push({role:"assistant",content:"画图失败："+e.message});
+            saveConvs(); renderChat();
+        }
         isLoading=false;
         document.getElementById("send-btn").disabled=false;
         return;
@@ -1384,6 +1420,8 @@ function delMemory(idx){ memories.splice(idx,1); localStorage.setItem("ld_memori
 // ============ SETTINGS ============
 function openSettings(){
     document.getElementById("api-key-input").value=apiKey;
+    document.getElementById("wanx-key-input").value=wanxKey;
+    document.getElementById("proxy-url-input").value=proxyUrl;
     document.getElementById("smart-switch-select").value=smartSwitch?"on":"off";
     document.getElementById("provider-select").value=model;
     document.getElementById("system-prompt-input").value=systemPrompt;
@@ -1393,10 +1431,14 @@ function openSettings(){
 function closeSettings(){ document.getElementById("settings-modal").classList.add("hidden"); }
 function saveSettings(){
     apiKey=document.getElementById("api-key-input").value.trim();
+    wanxKey=document.getElementById("wanx-key-input").value.trim();
+    proxyUrl=document.getElementById("proxy-url-input").value.trim().replace(/\/+$/,"");
     model=document.getElementById("provider-select").value;
     systemPrompt=document.getElementById("system-prompt-input").value.trim();
     smartSwitch=document.getElementById("smart-switch-select").value==="on";
     localStorage.setItem("ld_api_key",apiKey);
+    localStorage.setItem("ld_wanx_key",wanxKey);
+    localStorage.setItem("ld_proxy_url",proxyUrl);
     localStorage.setItem("ld_model",model);
     localStorage.setItem("ld_system",systemPrompt);
     localStorage.setItem("ld_smart",smartSwitch?"on":"off");
