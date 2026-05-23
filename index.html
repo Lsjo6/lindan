@@ -311,7 +311,7 @@
                     <span class="game-name">成语接龙</span>
                     <span class="game-desc">接最后字，同音即可</span>
                 </div>
-                <div class="game-option" onclick="startGame('murder_mystery')">
+                <div class="game-option" onclick="openGenrePicker()">
                     <span class="game-icon">🔍</span>
                     <span class="game-name">剧本杀</span>
                     <span class="game-desc">AI主持，多角色推理</span>
@@ -333,6 +333,46 @@
                 </div>
             </div>
             <button class="btn btn-secondary" style="width:100%;padding:10px" onclick="closeGameSelector()">取消</button>
+        </div>
+    </div>
+
+    <!-- 剧本杀 Genre Selector -->
+    <div class="modal-overlay hidden" id="genre-modal">
+        <div class="modal">
+            <h3>🔍 选择剧本类型</h3>
+            <div class="game-grid" id="genre-grid">
+                <div class="game-option" onclick="pickMurderGenre('ancient')">
+                    <span class="game-icon">🏯</span>
+                    <span class="game-name">古代</span>
+                    <span class="game-desc">宫廷江湖，古风探案</span>
+                </div>
+                <div class="game-option" onclick="pickMurderGenre('fantasy')">
+                    <span class="game-icon">🌌</span>
+                    <span class="game-name">异世界</span>
+                    <span class="game-desc">魔法奇幻，超自然谜案</span>
+                </div>
+                <div class="game-option" onclick="pickMurderGenre('urban')">
+                    <span class="game-icon">🏙️</span>
+                    <span class="game-name">都市</span>
+                    <span class="game-desc">现代都市，情感纠葛</span>
+                </div>
+                <div class="game-option" onclick="pickMurderGenre('crime')">
+                    <span class="game-icon">🔫</span>
+                    <span class="game-name">犯罪</span>
+                    <span class="game-desc">黑帮警匪，悬疑推理</span>
+                </div>
+                <div class="game-option" onclick="pickMurderGenre('scifi')">
+                    <span class="game-icon">🚀</span>
+                    <span class="game-name">科幻</span>
+                    <span class="game-desc">未来世界，AI与克隆</span>
+                </div>
+                <div class="game-option" onclick="pickMurderGenre('campus')">
+                    <span class="game-icon">🎒</span>
+                    <span class="game-name">校园</span>
+                    <span class="game-desc">青春校园，秘密与谎言</span>
+                </div>
+            </div>
+            <button class="btn btn-secondary" style="width:100%;padding:10px;margin-top:8px" onclick="closeGenrePicker()">返回</button>
         </div>
     </div>
 
@@ -1622,11 +1662,26 @@ function scorePattern(count, open){
 function openGameSelector(){ document.getElementById("game-modal").classList.remove("hidden"); }
 function closeGameSelector(){ document.getElementById("game-modal").classList.add("hidden"); }
 
+let pendingMurderGenre = null;
+function openGenrePicker(){
+    closeGameSelector();
+    document.getElementById("genre-modal").classList.remove("hidden");
+}
+function closeGenrePicker(){
+    document.getElementById("genre-modal").classList.add("hidden");
+    openGameSelector();
+}
+function pickMurderGenre(genre){
+    document.getElementById("genre-modal").classList.add("hidden");
+    pendingMurderGenre = genre;
+    startGame('murder_mystery');
+}
+
 const GAME_PROMPTS = {
     guess: "你正在和用户玩「猜数字」游戏。你已经想好了一个1-100之间的数字（请在心里确定一个具体数字，不要告诉用户）。用户每猜一次，你告诉他「大了」「小了」或「猜对了！」。用户猜对后，恭喜他，告诉他总共猜了几次，然后游戏自然结束。你的回复要简短活泼，像朋友玩游戏一样。",
     idiom: "你正在和用户玩「成语接龙」。规则：你说一个成语，用户需要接一个成语，首字必须和你成语的最后一个字相同（同音同调最好，同音不同调也可以灵活放行）。如果用户接不上或接错了，你可以鼓励他再试。接对了你就继续接下一个。你的回复要简短有趣。现在请说出第一个成语开始游戏。",
     riddle: "你正在和用户玩「猜谜语」。规则：你想一个有趣的谜语或脑筋急转弯（不要太难），用谜面的形式说出来。用户猜答案，你判断对错。猜对了就恭喜他，然后可以再出一个新谜语。猜不对给予提示。你的回复要简短有趣。现在请说第一个谜语开始游戏。",
-    murder_mystery: "你正在主持一场「剧本杀」推理游戏，你是DM（主持人）。你要扮演所有NPC角色和叙述者。重要规则：\n\n1.【案件设计】构思一个有趣的推理案件，包含：案发现场、3-4个嫌疑人（每个有动机和秘密）、关键线索（3-5个）、一个真凶。案件不要太复杂，适合10-15分钟推理。\n\n2.【角色扮演】每个NPC有鲜明的性格和说话方式，用「【角色名】」标签区分。比如：【管家老张】小姐，我真的什么都不知道...\n\n3.【游戏流程】\n- 第一轮：介绍案件背景和所有嫌疑人，让用户了解基本情况\n- 第二轮：用户自由调查——可以「询问某人」、「搜查某处」、「检查线索」等。你要根据用户的行动给出反应和线索\n- 用户随时可以「指认凶手」——说出猜测和推理。猜对了恭喜并揭露真相；猜错了告诉他还差一点，鼓励继续调查\n\n4.【互动风格】像真正的剧本杀DM一样带动气氛，适当制造悬念和紧张感。每个NPC要说不同的话，不要串戏。线索要藏在对话和环境描述中，不要太明显。\n\n5.【结束条件】用户正确指认真凶或说「结束游戏」。结束后你要完整还原案件真相。\n\n现在请构思一个案件并开始主持！先简单介绍故事背景，然后介绍嫌疑人。",
+    murder_mystery: "你正在主持一场「剧本杀」推理游戏，你是DM（主持人）。你要扮演所有NPC角色和叙述者。重要规则：\n\n1.【案件设计】根据用户指定的剧本风格，构思一个有趣的推理案件。包含：案发现场、3-4个嫌疑人（每个有动机和秘密）、关键线索（3-5个）、一个真凶。案件不要太复杂，适合10-15分钟推理。\n- 古代风格：宫廷斗争、江湖恩怨、古宅秘案\n- 异世界风格：魔法犯罪、精灵凶案、穿越谜局\n- 都市风格：办公室谋杀、邻里纠纷、情感阴谋\n- 犯罪风格：黑帮仇杀、连环案件、警匪对决\n- 科幻风格：AI杀人、克隆人阴谋、星际犯罪\n- 校园风格：社团秘密、考试舞弊、青春暗流\n\n2.【角色扮演】每个NPC有鲜明的性格和说话方式，用「【角色名】」标签区分。比如：【管家老张】小姐，我真的什么都不知道...\n\n3.【游戏流程】\n- 第一轮：介绍案件背景和所有嫌疑人，让用户了解基本情况\n- 第二轮：用户自由调查——可以「询问某人」、「搜查某处」、「检查线索」等。你要根据用户的行动给出反应和线索\n- 用户随时可以「指认凶手」——说出猜测和推理。猜对了恭喜并揭露真相；猜错了告诉他还差一点，鼓励继续调查\n\n4.【互动风格】像真正的剧本杀DM一样带动气氛，适当制造悬念和紧张感。每个NPC要说不同的话，不要串戏。线索要藏在对话和环境描述中，不要太明显。\n\n5.【结束条件】用户正确指认真凶或说「结束游戏」。结束后你要完整还原案件真相。\n\n现在请根据用户选择的风格构思案件并开始主持！先简单介绍故事背景，然后介绍嫌疑人。",
 };
 
 function startGame(type){
@@ -1643,7 +1698,12 @@ function startGame(type){
         guess: "我想玩猜数字游戏，请你想好一个1-100的数字，我来猜！",
         idiom: "我想玩成语接龙，请你先说一个成语开始吧！",
         riddle: "我想猜谜语，请你出一个谜语让我猜！",
-        murder_mystery: "我想玩剧本杀！请为我主持一场推理游戏，开始吧！",
+        murder_mystery: (() => {
+            const genreNames = {ancient:'古代',fantasy:'异世界',urban:'都市',crime:'犯罪',scifi:'科幻',campus:'校园'};
+            const genre = pendingMurderGenre || 'crime';
+            pendingMurderGenre = null;
+            return `我想玩剧本杀！请为我主持一场【${genreNames[genre]||genre}】风格的推理游戏，开始吧！`;
+        })(),
     };
     const prompt = prompts[type];
     sendMessage(prompt);
