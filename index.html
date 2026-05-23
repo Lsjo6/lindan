@@ -349,7 +349,11 @@
                 <button onclick="quickTrans('en-US','ja-JP')">英→日</button>
             </div>
             <div class="trans-mic" id="trans-mic" onclick="toggleListening()">🎤</div>
-            <div class="trans-hint" id="trans-hint">点击麦克风开始说话</div>
+            <div class="trans-hint" id="trans-hint">点击麦克风说话，或直接输入文字</div>
+            <div style="display:flex;gap:6px;margin-top:6px">
+                <input type="text" id="trans-text-input" placeholder="输入要翻译的文字..." style="flex:1;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-size:14px" onkeydown="if(event.key==='Enter')transText()">
+                <button class="btn btn-primary" onclick="transText()" style="padding:10px 16px;flex-shrink:0">翻译</button>
+            </div>
             <div class="trans-results" id="trans-results">
                 <div class="trans-orig" id="trans-orig"></div>
                 <div class="trans-trans" id="trans-trans"></div>
@@ -1013,6 +1017,28 @@ function transFromChanged(){
 function toggleListening(){
     if(transIsListening) stopListening();
     else startListening();
+}
+
+async function transText(){
+    const text = document.getElementById("trans-text-input").value.trim();
+    if(!text) return;
+    if(!apiKey){ showToast("请先设置API密钥"); return; }
+    document.getElementById("trans-orig").textContent = text;
+    document.getElementById("trans-trans").textContent = "翻译中...";
+    document.getElementById("trans-results").classList.add("visible");
+    const fromLang = document.getElementById("trans-from").value;
+    const toLang = document.getElementById("trans-to").value;
+    const langNames = {"zh-CN":"中文","en-US":"英文","ja-JP":"日文","ko-KR":"韩文","fr-FR":"法文","de-DE":"德文","es-ES":"西班牙文"};
+    const fromName = langNames[fromLang]||fromLang;
+    const toName = langNames[toLang]||toLang;
+    try{
+        const sys = `你是一个翻译助手。把用户输入的${fromName}翻译成${toName}。只输出翻译结果，不要加解释。如果原文已经是${toName}，就直接输出原文。`;
+        const result = await callDeepSeek(apiKey, "deepseek-v4-flash", [{role:"user",content:text}], sys);
+        document.getElementById("trans-trans").textContent = result.trim();
+    }catch(e){
+        document.getElementById("trans-trans").textContent = "翻译失败："+e.message;
+    }
+    document.getElementById("trans-text-input").value = "";
 }
 
 function startListening(){
