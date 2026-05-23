@@ -419,7 +419,19 @@
                 <option value="off">关闭（始终用手动选择的模型）</option>
             </select>
             <label>朗读音色</label>
-            <div style="display:flex;gap:6px"><select id="voice-select" style="flex:1" onfocus="populateVoices()"></select><button class="btn btn-secondary" onclick="populateVoices();showToast('已刷新')" style="flex-shrink:0;padding:8px 10px;font-size:13px" title="刷新音色列表">🔄</button><button class="btn btn-secondary" onclick="previewVoice()" style="flex-shrink:0;padding:8px 14px">🔊 试听</button></div>
+            <div style="display:flex;gap:6px"><select id="voice-select" style="flex:1">
+            <option value="">默认音色</option>
+            <option value="Microsoft Huihui">慧慧 - 中文女声</option>
+            <option value="Microsoft Kangkang">康康 - 中文男声</option>
+            <option value="Microsoft Yaoyao">瑶瑶 - 中文女声</option>
+            <option value="Microsoft Zira">Zira - 英文女声</option>
+            <option value="Microsoft David">David - 英文男声</option>
+            <option value="Microsoft Mark">Mark - 英文男声</option>
+            <option value="Google 普通话">Google 普通话</option>
+            <option value="Google 粤语">Google 粤语</option>
+            <option value="Google 英語(美國)">Google 英语</option>
+            <option value="Google 日本語">Google 日语</option>
+            </select><button class="btn btn-secondary" onclick="previewVoice()" style="flex-shrink:0;padding:8px 14px">🔊 试听</button></div>
             <label>主题配色</label>
             <div class="theme-grid" id="theme-grid"></div>
             <div class="btn-row">
@@ -703,12 +715,6 @@ function init(){
         document.getElementById("game-bar").classList.remove("hidden");
         document.getElementById("game-label").textContent = `游戏中：${names[activeGame]}`;
     }
-
-    // Wake up speech engine (Chrome needs a speak call before getVoices works)
-    speechSynthesis.cancel();
-    const wu = new SpeechSynthesisUtterance(""); wu.volume=0; speechSynthesis.speak(wu);
-    speechSynthesis.onvoiceschanged = () => populateVoices();
-    setTimeout(()=>populateVoices(), 3000); // fallback: try again after 3s
 
     document.getElementById("api-key-input").value = apiKey;
     document.getElementById("personality-select").value = currentPersonality;
@@ -1294,50 +1300,13 @@ function getVoice(){
     if(!selectedVoice) return null;
     try{
         const voices = speechSynthesis.getVoices();
-        // Exact name match first, then substring match (for hardcoded names like "Microsoft Huihui - 慧慧")
-        let v = voices.find(v=>v.name===selectedVoice);
-        if(!v) v = voices.find(v=>selectedVoice.includes(v.name)||v.name.includes(selectedVoice));
+        // Try exact match first, then partial match
+        let v = voices.find(x=>x.name===selectedVoice);
+        if(!v) v = voices.find(x=>x.name.includes(selectedVoice)||selectedVoice.includes(x.name));
         return v || null;
     }catch(e){return null;}
 }
-function populateVoices(){
-    const sel = document.getElementById("voice-select");
-    if(!sel) return;
-    const stock = [
-        {n:"Microsoft Huihui - 慧慧",l:"zh-CN"},
-        {n:"Microsoft Kangkang - 康康",l:"zh-CN"},
-        {n:"Microsoft Yaoyao - 瑶瑶",l:"zh-CN"},
-        {n:"Microsoft Zira - 英文女",l:"en-US"},
-        {n:"Microsoft David - 英文男",l:"en-US"},
-        {n:"Microsoft Mark - 英文男",l:"en-US"},
-        {n:"Google 普通话",l:"zh-CN"},
-        {n:"Google 粤语",l:"zh-HK"},
-        {n:"Google 英语(美国)",l:"en-US"},
-        {n:"Google 日本語",l:"ja-JP"},
-    ];
-    sel.innerHTML = '<option value="">默认音色</option>';
-    const sys = speechSynthesis.getVoices();
-    // Add actual system voices first
-    if(sys.length>0){
-        sys.forEach(v => {
-            const o = document.createElement("option");
-            o.value = v.name; o.textContent = v.name + " (" + v.lang + ")";
-            if(v.name===selectedVoice) o.selected=true;
-            sel.appendChild(o);
-        });
-    }
-    // Add stock voices not already in system list
-    if(sys.length===0) sel.innerHTML += '<option disabled>── 常用音色 ──</option>';
-    const sysNames = new Set(sys.map(v=>v.name));
-    stock.forEach(v => {
-        if(!sysNames.has(v.n)){
-            const o = document.createElement("option");
-            o.value = v.n; o.textContent = v.n;
-            if(v.n===selectedVoice) o.selected=true;
-            sel.appendChild(o);
-        }
-    });
-}
+function populateVoices(){ /* no-op: voices are hardcoded in HTML */ }
 function previewVoice(){
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance("你好，我是杰少，这是试听。");
@@ -1505,9 +1474,9 @@ function openSettings(){
     document.getElementById("smart-switch-select").value=smartSwitch?"on":"off";
     document.getElementById("provider-select").value=model;
     document.getElementById("system-prompt-input").value=systemPrompt;
+    document.getElementById("voice-select").value=selectedVoice;
     renderThemeGrid();
     document.getElementById("settings-modal").classList.remove("hidden");
-    try{ populateVoices(); }catch(e){}
 }
 function closeSettings(){ document.getElementById("settings-modal").classList.add("hidden"); }
 function saveSettings(){
