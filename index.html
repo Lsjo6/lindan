@@ -291,7 +291,6 @@
                 <button class="quick-btn" onclick="showFortune()">🔮 今日运势</button>
                 <button class="quick-btn" onclick="openDecider()">🤔 做决定</button>
                 <button class="quick-btn" onclick="openTranslator()">📝 翻译</button>
-                <button class="quick-btn" onclick="startGomokuGame()">⚫ 五子棋</button>
                 <button class="quick-btn" onclick="showHotNews()">📰 热点</button>
             </div>
         </div>
@@ -1248,6 +1247,7 @@ function startGomokuGame(){
     canvas.addEventListener("click", gomokuClick);
     canvas.addEventListener("mousemove", gomokuMouseMove);
     canvas.addEventListener("mouseleave", gomokuMouseLeave);
+    canvas.addEventListener("touchstart", gomokuTouchStart, {passive: false});
     canvas.addEventListener("touchmove", gomokuTouchMove, {passive: false});
     canvas.addEventListener("touchend", gomokuTouchClear);
 
@@ -1259,6 +1259,7 @@ function stopGomokuGame(){
     canvas.removeEventListener("click", gomokuClick);
     canvas.removeEventListener("mousemove", gomokuMouseMove);
     canvas.removeEventListener("mouseleave", gomokuMouseLeave);
+    canvas.removeEventListener("touchstart", gomokuTouchStart);
     canvas.removeEventListener("touchmove", gomokuTouchMove);
     canvas.removeEventListener("touchend", gomokuTouchClear);
     document.getElementById("gomoku-overlay").classList.add("hidden");
@@ -1296,6 +1297,11 @@ function getGomokuCell(e){
 }
 
 function gomokuClick(e){
+    // Debounce to prevent touchstart+click double-fire
+    const now = Date.now();
+    if(now - gomokuLastPlaceTime < 400) return;
+    gomokuLastPlaceTime = now;
+
     if(gomokuGameOver){ restartGomokuGame(); return; }
     if(gomokuAiThinking || gomokuCurrentPlayer !== 1) return;
 
@@ -1350,6 +1356,21 @@ function gomokuMouseMove(e){
 }
 
 function gomokuMouseLeave(){ if(gomokuHoverCell){ gomokuHoverCell = null; drawGomokuBoard(); }}
+
+let gomokuLastPlaceTime = 0;
+
+function gomokuTouchStart(e){
+    // Place stone on tap, prevent click from double-firing
+    const now = Date.now();
+    if(now - gomokuLastPlaceTime < 500) return;
+    gomokuLastPlaceTime = now;
+    e.preventDefault();
+    const t = e.touches[0];
+    if(t){
+        const fakeE = {clientX: t.clientX, clientY: t.clientY};
+        gomokuClick(fakeE);
+    }
+}
 
 function gomokuTouchMove(e){
     e.preventDefault();
