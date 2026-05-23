@@ -1203,7 +1203,7 @@ async function sendMessage(content){
     // Handle image generation
     if(isImgReq){
         const imgUrl = generateImage(text);
-        conv.messages.push({role:"assistant",content:`<img src="${imgUrl}" alt="AI生成" onerror="this.onerror=null;this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22300%22 height=%22300%22><rect fill=%22%23111%22 width=%22300%22 height=%22300%22 rx=%2210%22/><text fill=%22%23aaa%22 x=%22150%22 y=%22145%22 text-anchor=%22middle%22 font-size=%2214%22>😅 图片加载失败</text></svg>'"><br><span style="font-size:11px;color:var(--text2)">AI 生成 | Pollinations.ai</span>`});
+        conv.messages.push({role:"assistant",content:`<div class="img-wrap"><div class="img-loading">正在生成图片...</div><img src="${imgUrl}" alt="AI生成" onload="var p=this.parentElement;p.querySelector('.img-loading').remove();this.style.display=''" onerror="var p=this.parentElement;p.querySelector('.img-loading').innerHTML='图片加载失败 - 可能被墙了';this.remove()" style="display:none" referrerpolicy="no-referrer"><a href="${imgUrl}" target="_blank" style="font-size:12px;color:var(--accent)">在新窗口打开</a></div><span style="font-size:11px;color:var(--text2)">AI 生成 | Pollinations.ai</span>`});
         saveConvs(); renderChat();
         isLoading=false;
         document.getElementById("send-btn").disabled=false;
