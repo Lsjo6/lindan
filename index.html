@@ -1300,11 +1300,33 @@ const HAS_TTS = typeof SpeechSynthesisUtterance !== "undefined" && typeof speech
 let _ttsUtterance = null;
 
 function speakViaAudio(text, isEN){
-    // Fallback: use Google Translate TTS via <audio> - works in ANY browser, no CORS needed
-    const lang = isEN ? "en" : "zh-CN";
-    const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&q=${encodeURIComponent(text)}&tl=${lang}`;
+    // Baidu Translate TTS - free, no auth, works in China
+    // Split long text into chunks (baidu limit ~200 chars)
+    const maxLen = 150;
+    const chunks = [];
+    let remaining = text;
+    while(remaining.length > 0){
+        if(remaining.length <= maxLen){ chunks.push(remaining); break; }
+        // Try to split at punctuation
+        let cut = maxLen;
+        for(let i = maxLen; i >= maxLen - 30; i--){
+            if(",，.。!！?？;；、".includes(remaining[i])){ cut = i + 1; break; }
+        }
+        chunks.push(remaining.slice(0, cut));
+        remaining = remaining.slice(cut);
+    }
+    playChunks(chunks, 0, isEN);
+}
+let _audioCtx = null;
+function playChunks(chunks, idx, isEN){
+    if(idx >= chunks.length) return;
+    const lan = isEN ? "en" : "zh";
+    const spd = isEN ? 3 : 4;
+    const url = `https://fanyi.baidu.com/gettts?lan=${lan}&text=${encodeURIComponent(chunks[idx])}&spd=${spd}&source=web`;
     const audio = new Audio(url);
-    audio.play().catch(e => showToast("语音播放失败："+e.message));
+    audio.onended = () => playChunks(chunks, idx + 1, isEN);
+    audio.onerror = () => showToast("语音播放失败，请检查网络");
+    audio.play().catch(() => {});
 }
 
 function getVoice(){
