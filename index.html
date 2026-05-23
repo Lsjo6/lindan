@@ -1286,8 +1286,7 @@ function cancelPhoto(){
 }
 function getVoice(){
     if(!selectedVoice) return null;
-    const voices = speechSynthesis.getVoices();
-    return voices.find(v => v.name === selectedVoice) || null;
+    try{ const voices = speechSynthesis.getVoices(); return voices.find(v=>v.name===selectedVoice)||null; }catch(e){return null;}
 }
 function speakText(btn){
     speechSynthesis.cancel();
@@ -1309,8 +1308,9 @@ function readAloud(){
     const v = getVoice(); if(v) u.voice = v;
     speechSynthesis.speak(u);
 }
-function populateVoices(){
+function populateVoices(retry){
     const sel = document.getElementById("voice-select");
+    if(!sel) return;
     sel.innerHTML = '<option value="">默认音色</option>';
     const voices = speechSynthesis.getVoices();
     voices.forEach(v => {
@@ -1320,8 +1320,8 @@ function populateVoices(){
         if(v.name === selectedVoice) opt.selected = true;
         sel.appendChild(opt);
     });
-    // Voices load async, retry
-    if(voices.length === 0) setTimeout(populateVoices, 500);
+    // Voices load async on some browsers, retry up to 5 times
+    if(voices.length === 0 && (!retry || retry < 5)) setTimeout(()=>populateVoices((retry||0)+1), 500);
 }
 function autoResize(el){ el.style.height="auto"; el.style.height=Math.min(el.scrollHeight,110)+"px"; }
 function saveChat(){ saveConvs(); }
@@ -1463,9 +1463,9 @@ function openSettings(){
     document.getElementById("smart-switch-select").value=smartSwitch?"on":"off";
     document.getElementById("provider-select").value=model;
     document.getElementById("system-prompt-input").value=systemPrompt;
-    populateVoices();
     renderThemeGrid();
     document.getElementById("settings-modal").classList.remove("hidden");
+    try{ populateVoices(); }catch(e){}
 }
 function closeSettings(){ document.getElementById("settings-modal").classList.add("hidden"); }
 function saveSettings(){
