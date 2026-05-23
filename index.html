@@ -444,9 +444,6 @@
 </div>
 
 <script>
-window.onerror = function(msg, url, line){
-    document.body.innerHTML = '<div style="padding:40px;color:red;font-size:18px">JS报错: '+msg+'<br>行号: '+line+'<br><br>请截图发给开发者</div>';
-};
 // ============ CONSTANTS ============
 const DEEPSEEK_API = "https://api.deepseek.com/v1/chat/completions";
 const WEATHER_API = "https://wttr.in";
@@ -1303,42 +1300,7 @@ const HAS_TTS = typeof SpeechSynthesisUtterance !== "undefined" && typeof speech
 let _ttsUtterance = null;
 
 function speakViaAudio(text, isEN){
-    // Baidu Translate TTS - free, no auth, works in China
-    // Split long text into chunks (baidu limit ~200 chars)
-    const maxLen = 150;
-    const chunks = [];
-    let remaining = text;
-    while(remaining.length > 0){
-        if(remaining.length <= maxLen){ chunks.push(remaining); break; }
-        // Try to split at punctuation
-        let cut = maxLen;
-        for(let i = maxLen; i >= maxLen - 30; i--){
-            if(",，.。!！?？;；、".includes(remaining[i])){ cut = i + 1; break; }
-        }
-        chunks.push(remaining.slice(0, cut));
-        remaining = remaining.slice(cut);
-    }
-    playChunks(chunks, 0, isEN);
-}
-function playChunks(chunks, idx, isEN){
-    if(idx >= chunks.length) return;
-    const text = chunks[idx];
-    const lan = isEN ? "en" : "zh";
-    // Youdao Dictionary TTS (free, no auth, works in China)
-    const ydUrl = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(text)}&le=${lan}`;
-    // Baidu Translate TTS (free, no auth)
-    const bdUrl = `https://fanyi.baidu.com/gettts?lan=${lan}&text=${encodeURIComponent(text)}&spd=3&source=web`;
-
-    let tid, audio;
-    function done(fn){ clearTimeout(tid); if(audio){ audio.onerror=null; audio.onloadeddata=null; audio.src=""; } fn(); }
-    function tryNext(url, onFail){
-        audio = new Audio();
-        audio.src = url;
-        audio.onloadeddata = () => { done(()=>{ audio.play().catch(()=>{}); }); audio.onended = ()=>playChunks(chunks,idx+1,isEN); };
-        audio.onerror = () => done(onFail);
-        tid = setTimeout(() => done(onFail), 5000);
-    }
-    tryNext(ydUrl, ()=> tryNext(bdUrl, ()=> showToast("语音源不可用，请检查网络")));
+    showToast("语音朗读需要Chrome或Edge浏览器，你可在Windows开始菜单找到Edge");
 }
 
 function getVoice(){
