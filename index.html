@@ -159,6 +159,8 @@
         #cam-btn{width:40px;height:40px;border-radius:50%;border:none;background:var(--surface2);color:var(--text);font-size:18px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .2s}
         #cam-btn:active{background:var(--accent);transform:scale(.95)}
         .msg-bubble .photo-preview{max-width:200px;border-radius:12px;margin-bottom:6px;display:block;border:2px solid var(--border)}
+        .msg-bubble .speak-msg-btn{float:right;width:26px;height:26px;border-radius:50%;border:none;background:var(--surface2);color:var(--text);font-size:12px;cursor:pointer;margin:0 0 4px 6px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+        .msg-bubble .speak-msg-btn:active{background:var(--accent);transform:scale(.9)}
 
         .panel-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;z-index:100;animation:fadeIn .2s ease}
         .panel-overlay.hidden{display:none}
@@ -259,6 +261,7 @@
                 <button class="quick-btn" onclick="showFortune()">🔮 今日运势</button>
                 <button class="quick-btn" onclick="openDecider()">🤔 做决定</button>
                 <button class="quick-btn" onclick="openTranslator()">🎙️ 实时传译</button>
+                <button class="quick-btn" onclick="readAloud()">🔊 朗读</button>
             </div>
         </div>
     </div>
@@ -792,7 +795,8 @@ function renderChat(){
                 let imgHtml = m.image ? `<img src="${m.image}" class="photo-preview" alt="用户上传">` : "";
                 let content = imgHtml + fmt(m.content);
                 if(m.weather) content = renderWeatherCard(m.weather) + content;
-                d.innerHTML=`<div class="msg-avatar">${m.role==="user"?"❓":"✅"}</div><div class="msg-bubble">${content}</div>`;
+                const speakBtn = m.role==="assistant" ? `<button class="speak-msg-btn" onclick="speakText(this)" data-text="${escAttr(m.content)}" title="朗读">🔊</button>` : "";
+                d.innerHTML=`<div class="msg-avatar">${m.role==="user"?"❓":"✅"}</div><div class="msg-bubble">${speakBtn}${content}</div>`;
             }
             c.appendChild(d);
         });
@@ -1275,6 +1279,24 @@ function cancelPhoto(){
     photoData = null;
     document.getElementById("cam-btn").textContent = "📷";
     document.getElementById("msg-input").placeholder = "和杰少说点什么...";
+}
+function speakText(btn){
+    speechSynthesis.cancel();
+    const text = btn.getAttribute("data-text");
+    if(!text) return;
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = /[a-zA-Z]{3,}/.test(text) ? "en-US" : "zh-CN";
+    u.rate = 0.9;
+    speechSynthesis.speak(u);
+}
+function readAloud(){
+    const text = document.getElementById("msg-input").value.trim();
+    if(!text){ showToast("请先输入要朗读的文字"); return; }
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = /[a-zA-Z]{3,}/.test(text) ? "en-US" : "zh-CN";
+    u.rate = 0.9;
+    speechSynthesis.speak(u);
 }
 function autoResize(el){ el.style.height="auto"; el.style.height=Math.min(el.scrollHeight,110)+"px"; }
 function saveChat(){ saveConvs(); }
