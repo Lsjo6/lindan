@@ -1320,24 +1320,25 @@ function speakViaAudio(text, isEN){
     }
     playChunks(chunks, 0, isEN);
 }
-let _audioCtx = null;
-async function playChunks(chunks, idx, isEN){
+function playChunks(chunks, idx, isEN){
     if(idx >= chunks.length) return;
+    const text = chunks[idx];
     const lan = isEN ? "en" : "zh";
-    const spd = isEN ? 3 : 4;
-    const url = `https://fanyi.baidu.com/gettts?lan=${lan}&text=${encodeURIComponent(chunks[idx])}&spd=${spd}&source=web`;
-    try{
-        // Fetch via no-referrer to bypass baidu's referrer check
-        const resp = await fetch(url, {referrerPolicy:"no-referrer"});
-        if(!resp.ok){ showToast("TTS请求失败: HTTP "+resp.status); return; }
-        const blob = await resp.blob();
-        const audio = new Audio(URL.createObjectURL(blob));
-        audio.onended = () => { URL.revokeObjectURL(audio.src); playChunks(chunks, idx+1, isEN); };
-        audio.onerror = () => { showToast("语音解码失败，请检查网络"); };
-        await audio.play();
-    }catch(e){
-        showToast("语音加载失败："+e.message);
+    // Youdao Dictionary TTS (free, no auth, works in China)
+    const ydUrl = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(text)}&le=${lan}`;
+    // Baidu Translate TTS (free, no auth)
+    const bdUrl = `https://fanyi.baidu.com/gettts?lan=${lan}&text=${encodeURIComponent(text)}&spd=3&source=web`;
+
+    let tid, audio;
+    function done(fn){ clearTimeout(tid); if(audio){ audio.onerror=null; audio.onloadeddata=null; audio.src=""; } fn(); }
+    function tryNext(url, onFail){
+        audio = new Audio();
+        audio.src = url;
+        audio.onloadeddata = () => { done(()=>{ audio.play().catch(()=>{}); }); audio.onended = ()=>playChunks(chunks,idx+1,isEN); };
+        audio.onerror = () => done(onFail);
+        tid = setTimeout(() => done(onFail), 5000);
     }
+    tryNext(ydUrl, ()=> tryNext(bdUrl, ()=> showToast("语音源不可用，请检查网络")));
 }
 
 function getVoice(){
