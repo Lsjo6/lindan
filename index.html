@@ -419,7 +419,7 @@
                 <option value="off">关闭（始终用手动选择的模型）</option>
             </select>
             <label>朗读音色</label>
-            <div style="display:flex;gap:8px"><select id="voice-select" style="flex:1" onfocus="populateVoices()"></select><button class="btn btn-secondary" onclick="previewVoice()" style="flex-shrink:0;padding:8px 14px">🔊 试听</button></div>
+            <div style="display:flex;gap:6px"><select id="voice-select" style="flex:1" onfocus="populateVoices()"></select><button class="btn btn-secondary" onclick="populateVoices();showToast('已刷新')" style="flex-shrink:0;padding:8px 10px;font-size:13px" title="刷新音色列表">🔄</button><button class="btn btn-secondary" onclick="previewVoice()" style="flex-shrink:0;padding:8px 14px">🔊 试听</button></div>
             <label>主题配色</label>
             <div class="theme-grid" id="theme-grid"></div>
             <div class="btn-row">
@@ -704,9 +704,11 @@ function init(){
         document.getElementById("game-label").textContent = `游戏中：${names[activeGame]}`;
     }
 
-    // Preload speech voices (load asynchronously on some browsers)
-    if(speechSynthesis.getVoices().length > 0) populateVoices();
-    speechSynthesis.onvoiceschanged = () => { if(document.getElementById("voice-select")) populateVoices(); };
+    // Wake up speech engine (Chrome needs a speak call before getVoices works)
+    speechSynthesis.cancel();
+    const wu = new SpeechSynthesisUtterance(""); wu.volume=0; speechSynthesis.speak(wu);
+    speechSynthesis.onvoiceschanged = () => populateVoices();
+    setTimeout(()=>populateVoices(), 3000); // fallback: try again after 3s
 
     document.getElementById("api-key-input").value = apiKey;
     document.getElementById("personality-select").value = currentPersonality;
@@ -1316,8 +1318,8 @@ function populateVoices(){
     const sel = document.getElementById("voice-select");
     if(!sel) return;
     const voices = speechSynthesis.getVoices();
-    if(voices.length === 0){ sel.innerHTML = '<option value="">加载中...</option>'; return; }
     sel.innerHTML = '<option value="">默认音色</option>';
+    if(voices.length === 0){ sel.innerHTML += '<option disabled>未检测到音色，点🔄刷新</option>'; return; }
     voices.forEach(v => {
         const opt = document.createElement("option");
         opt.value = v.name;
