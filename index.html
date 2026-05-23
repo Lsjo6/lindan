@@ -444,6 +444,9 @@
 </div>
 
 <script>
+window.onerror = function(msg, url, line){
+    document.body.innerHTML = '<div style="padding:40px;color:red;font-size:18px">JS报错: '+msg+'<br>行号: '+line+'<br><br>请截图发给开发者</div>';
+};
 // ============ CONSTANTS ============
 const DEEPSEEK_API = "https://api.deepseek.com/v1/chat/completions";
 const WEATHER_API = "https://wttr.in";
