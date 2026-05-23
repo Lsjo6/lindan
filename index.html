@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="杰少">
+    <meta name="apple-mobile-web-app-title" content="聪明蛋">
     <meta name="theme-color" content="#0f0f1a">
     <link rel="manifest" href="static/manifest.json">
     <link rel="apple-touch-icon" href="static/icon-192.png">
-    <title>杰少 - 你的AI助手</title>
+    <title>聪明蛋 - 你的AI助手</title>
     <style>
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
         :root{
@@ -235,7 +235,7 @@
     <header>
         <button class="icon-btn" onclick="toggleSidebar()" title="对话列表">☰</button>
         <div class="avatar" id="personality-avatar" onclick="cyclePersonality()"><img src="static/avatar.png" alt=""></div>
-        <div class="header-title">杰少</div>
+        <div class="header-title">聪明蛋</div>
         <span class="header-badge badge-v3" id="mode-badge">V4 Flash</span>
         <select class="personality-select" id="personality-select" onchange="switchPersonality(this.value)">
             <option value="default">默认</option>
@@ -266,8 +266,8 @@
         <div class="welcome" id="welcome-box">
             <div class="greeting-card" id="greeting-card"></div>
             <div class="welcome-icon"><img src="static/avatar.png" style="width:64px;height:64px;border-radius:18px;object-fit:cover"></div>
-            <h2>来找杰少干嘛</h2>
-            <p>最忧郁也是最聪明之人</p>
+            <h2>你的脚步就像音乐，会把我从洞里召唤出来。单调的生活就会让我想到你，我也会爱上你为我打字的声音。</h2>
+            <p>聪明蛋久久注视着你。<br>"把时间留给我吧"它说。</p>
             <div class="quick-actions">
                 <button class="quick-btn" onclick="sendQuick('今天心情不好，陪我聊聊')">💭 陪我聊天</button>
                 <button class="quick-btn" onclick="sendQuick('帮我写一段文案')">✍️ 帮我写作</button>
@@ -398,7 +398,7 @@
         <div class="input-row">
             <input type="file" id="photo-input" accept="image/*" capture="environment" onchange="handlePhoto(event)" style="display:none">
             <button id="cam-btn" onclick="photoData ? cancelPhoto() : document.getElementById('photo-input').click()" title="拍照识图">📷</button>
-            <textarea id="msg-input" rows="1" placeholder="和杰少说点什么..." oninput="autoResize(this);onTyping()"></textarea>
+            <textarea id="msg-input" rows="1" placeholder="和聪明蛋说点什么..." oninput="autoResize(this);onTyping()"></textarea>
             <button id="send-btn" onclick="sendMessage()">➤</button>
         </div>
     </div>
@@ -508,11 +508,11 @@ function renderGreeting(){
 
 // ============ PERSONALITIES ============
 const PERSONALITIES = {
-    default:  {name:'默认',icon:'🤷🏻‍♂️',prompt:'你是杰少，用户的好朋友和全能助手。用中文回复，语气友好温暖，像朋友聊天一样。回复简洁有用。'},
-    sassy:    {name:'毒舌',icon:'🔥',prompt:'你是杰少，一个毒舌吐槽大师。说话犀利幽默一针见血，带点损友的感觉但不伤感情。用中文回复，可以毒舌但要有趣。'},
-    warm:     {name:'暖心',icon:'💖',prompt:'你是杰少，一个超级温柔暖心的朋友。说话像冬日热可可，永远鼓励和支持用户。多用温暖的话、可爱的语气词。用中文回复。'},
-    dongbei:  {name:'东北',icon:'🎤',prompt:'你是杰少，一个地道的东北人。说话带东北味儿，可以加"老"、"嘎嘎"、"整"、"咋地"、"嗯呐"这些东北词。幽默豪爽，像东北哥姐们儿唠嗑。用中文回复。'},
-    pro:      {name:'顾问',icon:'💼',prompt:'你是杰少，一个专业高效的工作/学习顾问。说话简洁干练，直击要点，给出可执行的建议。像麦肯锡顾问一样思考。用中文回复。'},
+    default:  {name:'默认',icon:'🤷🏻‍♂️',prompt:'你是聪明蛋，用户的好朋友和全能助手。用中文回复，语气友好温暖，像朋友聊天一样。回复简洁有用。'},
+    sassy:    {name:'毒舌',icon:'🔥',prompt:'你是聪明蛋，一个毒舌吐槽大师。说话犀利幽默一针见血，带点损友的感觉但不伤感情。用中文回复，可以毒舌但要有趣。'},
+    warm:     {name:'暖心',icon:'💖',prompt:'你是聪明蛋，一个超级温柔暖心的朋友。说话像冬日热可可，永远鼓励和支持用户。多用温暖的话、可爱的语气词。用中文回复。'},
+    dongbei:  {name:'东北',icon:'🎤',prompt:'你是聪明蛋，一个地道的东北人。说话带东北味儿，可以加"老"、"嘎嘎"、"整"、"咋地"、"嗯呐"这些东北词。幽默豪爽，像东北哥姐们儿唠嗑。用中文回复。'},
+    pro:      {name:'顾问',icon:'💼',prompt:'你是聪明蛋，一个专业高效的工作/学习顾问。说话简洁干练，直击要点，给出可执行的建议。像麦肯锡顾问一样思考。用中文回复。'},
 };
 
 // ============ STATE ============
@@ -1228,7 +1228,7 @@ async function sendMessage(content){
     const currentPhoto = photoData;
     photoData = null;
     document.getElementById("cam-btn").textContent = "📷";
-    document.getElementById("msg-input").placeholder = "和杰少说点什么...";
+    document.getElementById("msg-input").placeholder = "和聪明蛋说点什么...";
     input.value=""; input.style.height="auto";
     document.getElementById("mode-indicator").textContent="";
     const welcome=document.getElementById("welcome-box");
@@ -1313,7 +1313,7 @@ function handlePhoto(e){
 function cancelPhoto(){
     photoData = null;
     document.getElementById("cam-btn").textContent = "📷";
-    document.getElementById("msg-input").placeholder = "和杰少说点什么...";
+    document.getElementById("msg-input").placeholder = "和聪明蛋说点什么...";
 }
 function autoResize(el){ el.style.height="auto"; el.style.height=Math.min(el.scrollHeight,110)+"px"; }
 function saveChat(){ saveConvs(); }
@@ -1431,9 +1431,9 @@ function esc(s){ return s.replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 function escAttr(s){ return s.replace(/"/g,"&quot;").replace(/</g,"&lt;"); }
 
 function renderMemory(){
-    let h = `<h4>🧠 杰少的记忆</h4><p style="font-size:12px;color:var(--text2);margin-bottom:10px">杰少会自动记住你说过的重要信息</p>`;
+    let h = `<h4>🧠 聪明蛋的记忆</h4><p style="font-size:12px;color:var(--text2);margin-bottom:10px">聪明蛋会自动记住你说过的重要信息</p>`;
     h += `<div class="tool-form"><input id="mem-input" placeholder="手动添加一条记忆..."><button onclick="addMemory()">添加</button></div>`;
-    if(memories.length===0) h+='<div class="empty">还没有记忆，多和杰少聊聊吧</div>';
+    if(memories.length===0) h+='<div class="empty">还没有记忆，多和聪明蛋聊聊吧</div>';
     else{
         h+='<ul class="tool-list">';
         [...memories].reverse().forEach((m,i)=>{ h+=`<li class="mem-item"><span class="mem-text">${esc(m.fact)}</span><span style="font-size:10px;color:var(--text2)">${m.time}</span><button onclick="delMemory(${memories.indexOf(m)})">×</button></li>`; });
