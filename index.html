@@ -64,6 +64,8 @@
         .msg-bubble p{margin:0 0 5px}.msg-bubble p:last-child{margin:0}
         .msg-bubble code{background:rgba(255,255,255,.08);padding:2px 5px;border-radius:4px;font-size:13px}
         .msg-bubble pre{background:rgba(0,0,0,.3);padding:10px 12px;border-radius:8px;overflow-x:auto;margin:5px 0;font-size:12.5px}
+        .msg-bubble img{border-radius:10px;max-width:100%;margin:6px 0;cursor:pointer}
+        .msg-bubble .img-loading{display:flex;align-items:center;gap:8px;padding:12px;background:var(--surface2);border-radius:10px;font-size:13px;color:var(--text2);margin:6px 0}
         .typing-dots{display:flex;gap:4px;padding:4px 0}.typing-dots span{width:7px;height:7px;border-radius:50%;background:var(--text2);animation:bounce 1.4s infinite ease-in-out}.typing-dots span:nth-child(2){animation-delay:.2s}.typing-dots span:nth-child(3){animation-delay:.4s}
         @keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}}
 
@@ -399,8 +401,10 @@
                 <option value="deepseek-v4-flash">DeepSeek V4 Flash（快速聊天）</option>
                 <option value="deepseek-v4-pro">DeepSeek V4 Pro（深度思考）</option>
             </select>
-            <label>API 密钥</label>
+            <label>API 密钥 (DeepSeek)</label>
             <input type="password" id="api-key-input" placeholder="sk-...">
+            <label>画图密钥 (通义万相)</label>
+            <input type="password" id="wanx-key-input" placeholder="sk-...">
             <label>自定义提示词（会覆盖人格设定）</label>
             <textarea id="system-prompt-input" rows="2" placeholder="留空则使用选中的人格设定..."></textarea>
             <label>智能切换</label>
@@ -488,7 +492,7 @@ const PERSONALITIES = {
 
 // ============ STATE ============
 let conversations = [], activeCid = null;
-let apiKey = "", model = "deepseek-v4-flash", systemPrompt = "";
+let apiKey = "", wanxKey = "", model = "deepseek-v4-flash", systemPrompt = "";
 let currentPersonality = "default", smartSwitch = true, isLoading = false;
 let journal = [], expenses = [], todos = [], memories = [];
 let activeGame = null; // null | 'guess' | 'idiom' | 'riddle'
@@ -659,12 +663,56 @@ async function callDeepSeek(apiKey, model, messages, systemText){
     return data.choices[0].message.content;
 }
 
+// ============ IMAGE GENERATION ============
+const IMG_KW = /画|生成.*图|画.*图|帮我画|给我画|画个|画一张|画幅|生成.*图片/;
+
+async function generateImage(prompt){
+    const WANX_API = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis";
+    const resp = await fetch(WANX_API, {
+        method:"POST",
+        headers:{
+            "Authorization":`Bearer ${wanxKey}`,
+            "Content-Type":"application/json",
+            "X-DashScope-Async":"enable",
+        },
+        body:JSON.stringify({
+            model:"wan2.2-t2i-flash",
+            input:{prompt},
+            parameters:{n:1,size:"1024*1024",prompt_extend:true,watermark:false},
+        }),
+    });
+    if(!resp.ok){
+        const err = await resp.json().catch(()=>({}));
+        throw new Error(err.message || `API 错误 (${resp.status})`);
+    }
+    const taskData = await resp.json();
+    const taskId = taskData.output?.task_id;
+    if(!taskId) throw new Error("未能获取任务ID");
+
+    // Poll for result
+    for(let i=0;i<60;i++){
+        await new Promise(r=>setTimeout(r,2000));
+        const pollResp = await fetch(`https://dashscope.aliyuncs.com/api/v1/tasks/${taskId}`,{
+            headers:{"Authorization":`Bearer ${wanxKey}`},
+        });
+        const pollData = await pollResp.json();
+        if(pollData.output?.task_status === "SUCCEEDED"){
+            return pollData.output.results[0].url;
+        }
+        if(pollData.output?.task_status === "FAILED"){
+            throw new Error(pollData.output.message || "生成失败");
+        }
+    }
+    throw new Error("生成超时，请重试");
+}
+
 // ============ INIT ============
 function init(){
     applyTheme(currentTheme);
     loadConvs();
 
     apiKey = localStorage.getItem("ld_api_key")||"";
+    wanxKey = localStorage.getItem("ld_wanx_key")||"";
     model = localStorage.getItem("ld_model")||"deepseek-v4-flash";
     systemPrompt = localStorage.getItem("ld_system")||"";
     currentPersonality = localStorage.getItem("ld_personality")||"default";
@@ -681,6 +729,7 @@ function init(){
     }
 
     document.getElementById("api-key-input").value = apiKey;
+    document.getElementById("wanx-key-input").value = wanxKey;
     document.getElementById("personality-select").value = currentPersonality;
     document.getElementById("smart-switch-select").value = smartSwitch?"on":"off";
     document.getElementById("provider-select").value = model;
@@ -1180,6 +1229,8 @@ async function sendMessage(content){
     const conv = getActiveConv();
     if(conv && conv.messages.length===0){ conv.title = autoTitle(text); saveConvs(); renderSidebar(); }
 
+    // Image generation check
+    const isImgReq = IMG_KW.test(text) && wanxKey;
     // Weather check
     let weatherData = null;
     if(WEATHER_KW.test(text)) weatherData = await checkWeather(text);
@@ -1187,8 +1238,27 @@ async function sendMessage(content){
     const msgObj = {role:"user",content:text};
     if(weatherData) msgObj.weather = weatherData;
     conv.messages.push(msgObj);
-    saveConvs(); renderChat(); showTyping();
+    saveConvs(); renderChat();
 
+    // Handle image generation
+    if(isImgReq){
+        showTyping();
+        try{
+            const imgUrl = await generateImage(text);
+            removeTyping();
+            conv.messages.push({role:"assistant",content:`<img src="${imgUrl}" alt="AI生成"><br><span style="font-size:11px;color:var(--text2)">✨ AI 生成 | 点击查看大图</span>`});
+            saveConvs(); renderChat();
+        }catch(e){
+            removeTyping();
+            conv.messages.push({role:"assistant",content:"😅 画图失败了："+e.message});
+            saveConvs(); renderChat();
+        }
+        isLoading=false;
+        document.getElementById("send-btn").disabled=false;
+        return;
+    }
+
+    showTyping();
     let sys = systemPrompt || PERSONALITIES[currentPersonality].prompt;
     const memCtx = getMemoryContext();
     if(memCtx) sys = sys + "\n\n" + memCtx;
@@ -1359,6 +1429,7 @@ function delMemory(idx){ memories.splice(idx,1); localStorage.setItem("ld_memori
 // ============ SETTINGS ============
 function openSettings(){
     document.getElementById("api-key-input").value=apiKey;
+    document.getElementById("wanx-key-input").value=wanxKey;
     document.getElementById("smart-switch-select").value=smartSwitch?"on":"off";
     document.getElementById("provider-select").value=model;
     document.getElementById("system-prompt-input").value=systemPrompt;
@@ -1368,10 +1439,12 @@ function openSettings(){
 function closeSettings(){ document.getElementById("settings-modal").classList.add("hidden"); }
 function saveSettings(){
     apiKey=document.getElementById("api-key-input").value.trim();
+    wanxKey=document.getElementById("wanx-key-input").value.trim();
     model=document.getElementById("provider-select").value;
     systemPrompt=document.getElementById("system-prompt-input").value.trim();
     smartSwitch=document.getElementById("smart-switch-select").value==="on";
     localStorage.setItem("ld_api_key",apiKey);
+    localStorage.setItem("ld_wanx_key",wanxKey);
     localStorage.setItem("ld_model",model);
     localStorage.setItem("ld_system",systemPrompt);
     localStorage.setItem("ld_smart",smartSwitch?"on":"off");
