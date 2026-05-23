@@ -1,8 +1,8 @@
-const CACHE = "ld-v3";
+const CACHE = "ld-v4";
 
 self.addEventListener("install", e => {
     e.waitUntil(
-        caches.open(CACHE).then(c => c.addAll(["/lindan/", "/lindan/static/manifest.json"]))
+        caches.open(CACHE).then(c => c.addAll(["/lindan/static/manifest.json", "/lindan/static/avatar.png", "/lindan/static/icon-192.png", "/lindan/static/icon-512.png"]))
     );
     self.skipWaiting();
 });
@@ -16,6 +16,14 @@ self.addEventListener("activate", e => {
 });
 
 self.addEventListener("fetch", e => {
+    // Network-first for HTML — always get latest version
+    if(e.request.destination === "document"){
+        e.respondWith(
+            fetch(e.request).catch(() => caches.match(e.request))
+        );
+        return;
+    }
+    // Cache-first for static assets
     e.respondWith(
         caches.match(e.request).then(r => r || fetch(e.request))
     );
