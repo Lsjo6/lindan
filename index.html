@@ -95,6 +95,20 @@
         .weather-card .wfc{text-align:center;font-size:11px;color:var(--text2);flex-shrink:0;min-width:44px}
         .weather-card .wfc .wfct{font-size:13px;color:var(--text);font-weight:500}
 
+        .hot-news-card{background:var(--surface2);border-radius:14px;padding:14px;margin:6px 0;border:1px solid var(--border)}
+        .hot-news-card .hn-header{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+        .hot-news-card .hn-header .hn-icon{font-size:22px}
+        .hot-news-card .hn-header .hn-title{font-size:15px;font-weight:600;color:var(--text)}
+        .hot-news-card .hn-source{font-size:11px;color:var(--text2)}
+        .hot-news-card .hn-list{list-style:none;padding:0;margin:0}
+        .hot-news-card .hn-item{padding:8px 0;border-bottom:1px solid var(--border);display:flex;gap:8px;font-size:13.5px;line-height:1.4}
+        .hot-news-card .hn-item:last-child{border-bottom:none;padding-bottom:0}
+        .hot-news-card .hn-rank{width:22px;height:22px;border-radius:6px;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+        .hot-news-card .hn-rank.r1{background:#f72585}.hot-news-card .hn-rank.r2{background:#f59e4b}.hot-news-card .hn-rank.r3{background:#fbbf24}
+        .hot-news-card .hn-text{flex:1;color:var(--text)}
+        .hot-news-card .hn-hot{font-size:10px;color:var(--text2);flex-shrink:0}
+        .hot-news-card .hn-loading{text-align:center;color:var(--text2);padding:12px;font-size:13px}
+
         /* Greeting */
         .greeting-card{background:linear-gradient(135deg,var(--surface2),var(--surface));border-radius:14px;padding:14px 16px;text-align:center;margin-bottom:10px;border:1px solid var(--border)}
         .greeting-card .greet-emoji{font-size:32px;margin-bottom:4px}
@@ -267,6 +281,7 @@
                 <button class="quick-btn" onclick="showFortune()">🔮 今日运势</button>
                 <button class="quick-btn" onclick="openDecider()">🤔 做决定</button>
                 <button class="quick-btn" onclick="openTranslator()">🎙️ 实时传译</button>
+                <button class="quick-btn" onclick="showHotNews()">📰 热点</button>
             </div>
         </div>
     </div>
@@ -798,10 +813,10 @@ function renderChat(){
                 d.className="message "+m.role;
                 const avatar = m.role==="user" ? "😎" : "🤖";
                 let imgHtml = m.image ? `<img src="${m.image}" class="photo-preview" alt="用户上传">` : "";
-                let body = imgHtml + fmt(m.content);
+                let body = m.isHtml ? (imgHtml + m.content) : (imgHtml + fmt(m.content));
                 if(m.weather) body = renderWeatherCard(m.weather) + body;
                 const time = m.time ? `<div class="msg-time">${fmtTime(m.time)}</div>` : "";
-                const copyBtn = m.role==="assistant" ? `<div class="msg-actions"><button class="msg-act-btn" onclick="copyMsg(this)" data-text="${escAttr(m.content)}" title="复制">📋</button></div>` : "";
+                const copyBtn = (m.role==="assistant" && !m.isHtml) ? `<div class="msg-actions"><button class="msg-act-btn" onclick="copyMsg(this)" data-text="${escAttr(m.content)}" title="复制">📋</button></div>` : "";
                 d.innerHTML=`<div class="msg-avatar">${avatar}</div><div class="msg-bubble">${body}${time}${copyBtn}</div>`;
             }
             c.appendChild(d);
@@ -854,6 +869,72 @@ const FORTUNES = [
     {stars:1,text:"可能会有点低落，但别忘了你已经很棒了。对自己好一点。",tip:"幸运色：粉色 | 幸运数字：6"},
 ];
 
+// ============ HOT NEWS ============
+async function showHotNews(){
+    const conv = getActiveConv();
+    conv.messages.push({role:"assistant",content:'<div class="hot-news-card"><div class="hn-header"><span class="hn-icon">📰</span><span class="hn-title">热点速览</span></div><div class="hn-loading">⏳ 正在获取最新热点...</div></div>',time:Date.now(),isHtml:true});
+    saveConvs(); renderChat();
+    try{
+        const news = await _fetchHotNews();
+        // Remove loading msg
+        conv.messages.pop();
+        conv.messages.push({role:"assistant",content:news,time:Date.now(),isHtml:true});
+    }catch(e){
+        conv.messages.pop();
+        conv.messages.push({role:"assistant",content:'<div class="hot-news-card"><div class="hn-header"><span class="hn-icon">📰</span><span class="hn-title">热点速览</span></div><div class="hn-loading">获取失败：'+esc(e.message)+'</div></div>',time:Date.now(),isHtml:true});
+    }
+    saveConvs(); renderChat();
+}
+
+async function _fetchHotNews(){
+    // Try Weibo hot list API first
+    try{
+        const resp = await fetch("https://api.vvhan.com/api/hotlist?type=wbHot");
+        if(resp.ok){
+            const data = await resp.json();
+            if(data.success && data.data && data.data.length>0){
+                return _formatHotList("微博热搜", data.data.slice(0,10));
+            }
+        }
+    }catch(e){}
+
+    // Fallback: ask DeepSeek for a news summary
+    if(apiKey){
+        try{
+            const prompt = "请以当前时间视角，列出10条左右近期全球重要热点事件，覆盖科技、经济、国际关系、社会等领域。每条格式：序号. 标题（15字以内）：一句话简述。像新闻聚合服务那样，只输出列表不要寒暄。";
+            const text = await callDeepSeek(apiKey, "deepseek-v4-flash", [{role:"user",content:prompt}], "你是新闻聚合助手，输出简洁的新闻列表。");
+            return _formatNewsText("今日热点", text);
+        }catch(e){}
+    }
+
+    throw new Error("无法获取热点数据，请检查网络或设置API密钥");
+}
+
+function _formatHotList(source, items){
+    let html = `<div class="hot-news-card"><div class="hn-header"><span class="hn-icon">📰</span><span class="hn-title">${esc(source)}</span></div><ul class="hn-list">`;
+    items.forEach((item,i)=>{
+        const rank = i<3 ? ` r${i+1}` : "";
+        const title = item.title || item.word || "";
+        const hot = item.hot || item.num || "";
+        html += `<li class="hn-item"><span class="hn-rank${rank}">${i+1}</span><span class="hn-text">${esc(title)}</span>${hot?`<span class="hn-hot">🔥 ${esc(String(hot))}</span>`:""}</li>`;
+    });
+    html += "</ul></div>";
+    return html;
+}
+
+function _formatNewsText(source, text){
+    const lines = text.trim().split(/\n/).filter(l=>l.trim());
+    let html = `<div class="hot-news-card"><div class="hn-header"><span class="hn-icon">📰</span><span class="hn-title">${esc(source)}</span></div><ul class="hn-list">`;
+    lines.forEach((line,i)=>{
+        const clean = line.replace(/^\d+[\.、)\s]+/,"").trim();
+        if(!clean) return;
+        html += `<li class="hn-item"><span class="hn-rank">${i+1}</span><span class="hn-text">${esc(clean)}</span></li>`;
+    });
+    html += "</ul></div>";
+    return html;
+}
+
+// ============ FORTUNE ============
 function showFortune(){
     const today = new Date().toDateString();
     const seed = today.split("").reduce((a,c)=>a+c.charCodeAt(0),0);
