@@ -1296,9 +1296,19 @@ function cancelPhoto(){
     document.getElementById("cam-btn").textContent = "📷";
     document.getElementById("msg-input").placeholder = "和杰少说点什么...";
 }
-let _ttsUtterance = null; // global ref prevents Chrome GC bug
+const HAS_TTS = typeof SpeechSynthesisUtterance !== "undefined" && typeof speechSynthesis !== "undefined";
+let _ttsUtterance = null;
+
+function speakViaAudio(text, isEN){
+    // Fallback: use Google Translate TTS via <audio> - works in ANY browser, no CORS needed
+    const lang = isEN ? "en" : "zh-CN";
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&q=${encodeURIComponent(text)}&tl=${lang}`;
+    const audio = new Audio(url);
+    audio.play().catch(e => showToast("语音播放失败："+e.message));
+}
+
 function getVoice(){
-    if(!selectedVoice) return null;
+    if(!selectedVoice || !HAS_TTS) return null;
     try{
         const voices = speechSynthesis.getVoices();
         let v = voices.find(x=>x.name===selectedVoice);
@@ -1308,6 +1318,7 @@ function getVoice(){
 }
 function populateVoices(){ /* no-op: voices are hardcoded in HTML */ }
 function doSpeak(text, isEN){
+    if(!HAS_TTS){ speakViaAudio(text, isEN); return; }
     return new Promise((resolve, reject) => {
         const u = new SpeechSynthesisUtterance(text);
         _ttsUtterance = u;
@@ -1317,34 +1328,25 @@ function doSpeak(text, isEN){
         const v = getVoice(); if(v) u.voice = v;
         u.onend = () => { _ttsUtterance = null; resolve(); };
         u.onerror = (e) => { _ttsUtterance = null; reject(e.error||"语音不可用"); };
-        // If already speaking, cancel first then retry via microtask
         if(speechSynthesis.speaking || speechSynthesis.pending){
             speechSynthesis.cancel();
-            setTimeout(() => {
-                _ttsUtterance = u;
-                speechSynthesis.speak(u);
-            }, 100);
+            setTimeout(() => { _ttsUtterance = u; speechSynthesis.speak(u); }, 100);
         } else {
             speechSynthesis.speak(u);
         }
     });
 }
 function previewVoice(){
-    if(typeof SpeechSynthesisUtterance === "undefined" || typeof speechSynthesis === "undefined"){
-        showToast("你浏览器不支持语音合成，请换Chrome试试");
+    if(!HAS_TTS){
+        speakViaAudio("你好，我是杰少，这是试听。", false);
         return;
     }
-    try{
-        const u = new SpeechSynthesisUtterance("你好我是杰少这是试听");
-        u.lang = "zh-CN";
-        u.rate = 0.9;
-        u.volume = 1;
-        u.onerror = function(e){ showToast("语音错误: "+(e.error||"unknown")); };
-        u.onstart = function(){ showToast("正在播放试听..."); };
-        speechSynthesis.speak(u);
-    }catch(e){
-        showToast("异常: "+e.message);
-    }
+    const u = new SpeechSynthesisUtterance("你好我是杰少这是试听");
+    u.lang = "zh-CN"; u.rate = 0.9; u.volume = 1;
+    u.onerror = function(e){ showToast("语音错误: "+(e.error||"unknown")); };
+    u.onstart = function(){ showToast("正在播放试听..."); };
+    speechSynthesis.speak(u);
+}
 }
 function speakText(btn){
     const text = btn.getAttribute("data-text");
