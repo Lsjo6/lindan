@@ -1321,15 +1321,23 @@ function speakViaAudio(text, isEN){
     playChunks(chunks, 0, isEN);
 }
 let _audioCtx = null;
-function playChunks(chunks, idx, isEN){
+async function playChunks(chunks, idx, isEN){
     if(idx >= chunks.length) return;
     const lan = isEN ? "en" : "zh";
     const spd = isEN ? 3 : 4;
     const url = `https://fanyi.baidu.com/gettts?lan=${lan}&text=${encodeURIComponent(chunks[idx])}&spd=${spd}&source=web`;
-    const audio = new Audio(url);
-    audio.onended = () => playChunks(chunks, idx + 1, isEN);
-    audio.onerror = () => showToast("语音播放失败，请检查网络");
-    audio.play().catch(() => {});
+    try{
+        // Fetch via no-referrer to bypass baidu's referrer check
+        const resp = await fetch(url, {referrerPolicy:"no-referrer"});
+        if(!resp.ok){ showToast("TTS请求失败: HTTP "+resp.status); return; }
+        const blob = await resp.blob();
+        const audio = new Audio(URL.createObjectURL(blob));
+        audio.onended = () => { URL.revokeObjectURL(audio.src); playChunks(chunks, idx+1, isEN); };
+        audio.onerror = () => { showToast("语音解码失败，请检查网络"); };
+        await audio.play();
+    }catch(e){
+        showToast("语音加载失败："+e.message);
+    }
 }
 
 function getVoice(){
