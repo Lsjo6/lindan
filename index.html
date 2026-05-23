@@ -194,7 +194,7 @@
         <button class="icon-btn" onclick="toggleSidebar()" title="对话列表">☰</button>
         <div class="avatar" id="personality-avatar" onclick="cyclePersonality()"><img src="static/avatar.png" alt=""></div>
         <div class="header-title">杰少</div>
-        <span class="header-badge badge-v3" id="mode-badge">V3</span>
+        <span class="header-badge badge-v3" id="mode-badge">V4 Flash</span>
         <select class="personality-select" id="personality-select" onchange="switchPersonality(this.value)">
             <option value="default">默认</option>
             <option value="sassy">毒舌</option>
@@ -334,8 +334,8 @@
             <h3>⚙️ 设置</h3>
             <label>AI 引擎</label>
             <select id="provider-select">
-                <option value="deepseek-chat">DeepSeek-V3（日常聊天）</option>
-                <option value="deepseek-reasoner">DeepSeek-R1（深度思考）</option>
+                <option value="deepseek-v4-flash">DeepSeek V4 Flash（快速聊天）</option>
+                <option value="deepseek-v4-pro">DeepSeek V4 Pro（深度思考）</option>
             </select>
             <label>API 密钥</label>
             <input type="password" id="api-key-input" placeholder="sk-...">
@@ -343,7 +343,7 @@
             <textarea id="system-prompt-input" rows="2" placeholder="留空则使用选中的人格设定..."></textarea>
             <label>智能切换</label>
             <select id="smart-switch-select">
-                <option value="on">开启（遇到数学/代码自动切R1）</option>
+                <option value="on">开启（遇到数学/代码自动切V4 Pro）</option>
                 <option value="off">关闭（始终用手动选择的模型）</option>
             </select>
             <label>主题配色</label>
@@ -426,7 +426,7 @@ const PERSONALITIES = {
 
 // ============ STATE ============
 let conversations = [], activeCid = null;
-let apiKey = "", model = "deepseek-chat", systemPrompt = "";
+let apiKey = "", model = "deepseek-v4-flash", systemPrompt = "";
 let currentPersonality = "default", smartSwitch = true, isLoading = false;
 let journal = [], expenses = [], todos = [], memories = [];
 let activeGame = null; // null | 'guess' | 'idiom' | 'riddle'
@@ -569,17 +569,18 @@ function renderWeatherCard(w){
 
 // ============ DEEPSEEK API (direct call) ============
 async function callDeepSeek(apiKey, model, messages, systemText){
-    let dsMessages = [];
-    if(model === "deepseek-reasoner"){
-        if(systemText) dsMessages.push({"role":"user","content":`[系统设定] ${systemText}\n\n你好，请多关照！`});
-        for(const m of messages) dsMessages.push({"role":m.role,"content":m.content});
-    }else{
-        dsMessages = [{"role":"system","content":systemText}];
-        for(const m of messages) dsMessages.push({"role":m.role,"content":m.content});
-    }
+    let dsMessages = [{"role":"system","content":systemText}];
+    for(const m of messages) dsMessages.push({"role":m.role,"content":m.content});
 
     const body = {model, messages: dsMessages, max_tokens: 4096};
-    if(model !== "deepseek-reasoner") body.temperature = 0.7;
+
+    // V4 Pro: enable deep thinking (replaces old R1)
+    if(model === "deepseek-v4-pro"){
+        body.thinking = {type: "enabled"};
+        body.reasoning_effort = "high";
+    } else {
+        body.temperature = 0.7;
+    }
 
     const resp = await fetch(DEEPSEEK_API, {
         method:"POST",
@@ -602,7 +603,7 @@ function init(){
     loadConvs();
 
     apiKey = localStorage.getItem("ld_api_key")||"";
-    model = localStorage.getItem("ld_model")||"deepseek-chat";
+    model = localStorage.getItem("ld_model")||"deepseek-v4-flash";
     systemPrompt = localStorage.getItem("ld_system")||"";
     currentPersonality = localStorage.getItem("ld_personality")||"default";
     smartSwitch = localStorage.getItem("ld_smart")!=="off";
@@ -650,7 +651,7 @@ function cyclePersonality(){
 function detectMode(text){
     if(!smartSwitch) return model;
     const r1Pattern = /算|数学|计算|等于|方程|证明|推导|代码|编程|debug|bug|错误|逻辑推理|算法|时间复杂度|公式|解|求证|写一个|实现|函数|class|def |import |print\(|console\.|递归|排序|搜索/g;
-    return r1Pattern.test(text) ? "deepseek-reasoner" : "deepseek-chat";
+    return r1Pattern.test(text) ? "deepseek-v4-pro" : "deepseek-v4-flash";
 }
 
 function onTyping(){
@@ -658,10 +659,10 @@ function onTyping(){
     const text = document.getElementById("msg-input").value.trim();
     if(!text){ document.getElementById("mode-indicator").textContent=""; return; }
     const m = detectMode(text);
-    if(m==="deepseek-reasoner" && model!=="deepseek-reasoner"){
-        document.getElementById("mode-indicator").innerHTML='<span style="color:var(--r1)">🧠 检测到推理任务，将自动使用 R1 深度思考</span>';
-    }else if(m==="deepseek-chat" && model!=="deepseek-chat"){
-        document.getElementById("mode-indicator").innerHTML='<span style="color:var(--v3)">💬 日常对话，使用 V3</span>';
+    if(m==="deepseek-v4-pro" && model!=="deepseek-v4-pro"){
+        document.getElementById("mode-indicator").innerHTML='<span style="color:var(--r1)">🧠 检测到推理任务，将自动使用 V4 Pro 深度思考</span>';
+    }else if(m==="deepseek-v4-flash" && model!=="deepseek-v4-flash"){
+        document.getElementById("mode-indicator").innerHTML='<span style="color:var(--v3)">💬 日常对话，使用 V4 Flash</span>';
     }else{
         document.getElementById("mode-indicator").textContent="";
     }
@@ -669,8 +670,8 @@ function onTyping(){
 
 function updateBadge(){
     const badge = document.getElementById("mode-badge");
-    if(model==="deepseek-reasoner"){ badge.textContent="R1"; badge.className="header-badge badge-r1"; }
-    else{ badge.textContent="V3"; badge.className="header-badge badge-v3"; }
+    if(model==="deepseek-v4-pro"){ badge.textContent="V4 Pro"; badge.className="header-badge badge-r1"; }
+    else{ badge.textContent="V4 Flash"; badge.className="header-badge badge-v3"; }
 }
 
 // ============ MEMORY ============
@@ -1009,7 +1010,7 @@ async function sendMessage(content){
 
     const useModel = smartSwitch ? detectMode(text) : model;
     if(smartSwitch && useModel!==model){
-        showToast(useModel==="deepseek-reasoner"?"🧠 自动切到R1深度思考":"💬 自动切到V3");
+        showToast(useModel==="deepseek-v4-pro"?"🧠 自动切到V4 Pro深度思考":"💬 自动切到V4 Flash");
     }
 
     const conv = getActiveConv();
