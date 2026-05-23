@@ -1330,14 +1330,18 @@ function doSpeak(text, isEN){
     });
 }
 function previewVoice(){
-    // Bare-minimum test: bypass all helpers to isolate the issue
+    if(typeof SpeechSynthesisUtterance === "undefined" || typeof speechSynthesis === "undefined"){
+        showToast("你浏览器不支持语音合成，请换Chrome试试");
+        return;
+    }
     try{
-        const u = new SpeechSynthesisUtterance("你好，我是杰少，这是试听。");
+        const u = new SpeechSynthesisUtterance("你好我是杰少这是试听");
         u.lang = "zh-CN";
         u.rate = 0.9;
-        u.onerror = function(e){ showToast("语音错误: "+e.error); };
+        u.volume = 1;
+        u.onerror = function(e){ showToast("语音错误: "+(e.error||"unknown")); };
+        u.onstart = function(){ showToast("正在播放试听..."); };
         speechSynthesis.speak(u);
-        showToast("已发送播放请求，等待语音...");
     }catch(e){
         showToast("异常: "+e.message);
     }
