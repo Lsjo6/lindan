@@ -1,4 +1,4 @@
-const CACHE = "ld-v28";
+const CACHE = "ld-v29";
 
 self.addEventListener("install", e => {
     e.waitUntil(

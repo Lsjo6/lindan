@@ -23,7 +23,7 @@
 
         header{padding:10px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;z-index:10;flex-wrap:wrap}
         .avatar{width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#4cc9f0);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;cursor:pointer;transition:all .3s;overflow:hidden}
-        .avatar img{width:100%;height:100%;border-radius:12px;object-fit:cover}
+        .avatar img{width:100%;height:100%;border-radius:12px;object-fit:contain;image-rendering:pixelated}
         .header-title{font-size:16px;font-weight:600;margin-right:auto}
         .header-badge{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600;flex-shrink:0}
         .badge-v3{background:#4cc9f020;color:var(--v3);border:1px solid #4cc9f040}
@@ -265,7 +265,7 @@
     <div id="chat-container">
         <div class="welcome" id="welcome-box">
             <div class="greeting-card" id="greeting-card"></div>
-            <div class="welcome-icon"><img src="static/avatar.png" style="width:64px;height:64px;border-radius:18px;object-fit:cover"></div>
+            <div class="welcome-icon"><img src="static/avatar.png" style="width:64px;height:64px;border-radius:18px;object-fit:contain;image-rendering:pixelated"></div>
             <h2>你的脚步就像音乐，会把我从洞里召唤出来。单调的生活就会让我想到你，我也会爱上你为我打字的声音。</h2>
             <p>聪明蛋久久注视着你。<br>"把时间留给我吧"它说。</p>
             <div class="quick-actions">
