@@ -1296,11 +1296,11 @@ function cancelPhoto(){
     document.getElementById("cam-btn").textContent = "📷";
     document.getElementById("msg-input").placeholder = "和杰少说点什么...";
 }
+let _ttsUtterance = null; // global ref prevents Chrome GC bug
 function getVoice(){
     if(!selectedVoice) return null;
     try{
         const voices = speechSynthesis.getVoices();
-        // Try exact match first, then partial match
         let v = voices.find(x=>x.name===selectedVoice);
         if(!v) v = voices.find(x=>x.name.includes(selectedVoice)||selectedVoice.includes(x.name));
         return v || null;
@@ -1309,14 +1309,24 @@ function getVoice(){
 function populateVoices(){ /* no-op: voices are hardcoded in HTML */ }
 function doSpeak(text, isEN){
     return new Promise((resolve, reject) => {
-        speechSynthesis.cancel();
         const u = new SpeechSynthesisUtterance(text);
+        _ttsUtterance = u;
         u.lang = isEN ? "en-US" : "zh-CN";
         u.rate = 0.9;
+        u.volume = 1;
         const v = getVoice(); if(v) u.voice = v;
-        u.onend = () => resolve();
-        u.onerror = (e) => reject(e.error||"语音不可用");
-        speechSynthesis.speak(u);
+        u.onend = () => { _ttsUtterance = null; resolve(); };
+        u.onerror = (e) => { _ttsUtterance = null; reject(e.error||"语音不可用"); };
+        // If already speaking, cancel first then retry via microtask
+        if(speechSynthesis.speaking || speechSynthesis.pending){
+            speechSynthesis.cancel();
+            setTimeout(() => {
+                _ttsUtterance = u;
+                speechSynthesis.speak(u);
+            }, 100);
+        } else {
+            speechSynthesis.speak(u);
+        }
     });
 }
 function previewVoice(){
