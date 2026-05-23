@@ -111,6 +111,23 @@
         #dino-hint{color:var(--text2);font-size:13px;margin-top:10px}
         #dino-close{position:absolute;top:16px;right:20px;background:none;border:none;color:#fff;font-size:28px;cursor:pointer;z-index:171}
 
+        /* Fortune */
+        .fortune-card{background:linear-gradient(135deg,#1a1030,#2d1050);border-radius:14px;padding:16px;text-align:center;border:1px solid #6030a0;margin:4px 0}
+        .fortune-stars{font-size:28px;letter-spacing:4px;margin-bottom:6px}
+        .fortune-text{font-size:14px;color:var(--text);margin-bottom:8px;line-height:1.5}
+        .fortune-tip{font-size:12px;color:var(--text2)}
+        .fortune-extras{display:flex;justify-content:center;gap:20px;margin-top:8px;font-size:11px;color:var(--text2)}
+        .fortune-extras span{color:var(--accent);font-weight:600}
+
+        /* Decider */
+        .decide-btns{display:flex;gap:10px;margin-bottom:12px}
+        .decide-btn{flex:1;padding:16px 8px;border-radius:14px;border:1px solid var(--border);background:var(--bg);text-align:center;cursor:pointer;transition:all .15s}
+        .decide-btn:active{background:var(--accent);border-color:var(--accent)}
+        .decide-btn .decide-icon{font-size:30px;display:block;margin-bottom:4px}
+        .decide-btn .decide-label{font-size:12px;font-weight:500}
+        .decide-result{text-align:center;padding:14px;background:var(--bg);border-radius:12px;font-size:22px;font-weight:700;color:var(--accent);margin-top:10px;animation:fadeIn .3s ease}
+        .decide-result.hidden{display:none}
+
         #input-area{padding:10px 14px 16px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0}
         .input-row{display:flex;gap:8px;align-items:flex-end}
         #msg-input{flex:1;padding:10px 14px;border-radius:20px;border:1px solid var(--border);background:var(--input-bg,var(--surface));color:var(--text);font-size:14.5px;resize:none;outline:none;max-height:110px;line-height:1.4;font-family:inherit;transition:border-color .2s}
@@ -216,6 +233,8 @@
                 <button class="quick-btn" onclick="sendQuick('帮我算一下 356 × 789')">🧮 帮我算数</button>
                 <button class="quick-btn" onclick="sendQuick('今天北京天气怎么样')">🌤️ 查天气</button>
                 <button class="quick-btn" onclick="openGameSelector()">🎮 小游戏</button>
+                <button class="quick-btn" onclick="showFortune()">🔮 今日运势</button>
+                <button class="quick-btn" onclick="openDecider()">🤔 做决定</button>
             </div>
         </div>
     </div>
@@ -247,6 +266,29 @@
                 </div>
             </div>
             <button class="btn btn-secondary" style="width:100%;padding:10px" onclick="closeGameSelector()">取消</button>
+        </div>
+    </div>
+
+    <!-- Decider Modal -->
+    <div class="modal-overlay hidden" id="decider-modal">
+        <div class="modal">
+            <h3>🤔 做决定</h3>
+            <div class="decide-btns">
+                <div class="decide-btn" onclick="doDecide('coin')">
+                    <span class="decide-icon">🪙</span>
+                    <span class="decide-label">掷硬币</span>
+                </div>
+                <div class="decide-btn" onclick="doDecide('dice')">
+                    <span class="decide-icon">🎲</span>
+                    <span class="decide-label">掷骰子</span>
+                </div>
+                <div class="decide-btn" onclick="promptPick()">
+                    <span class="decide-icon">🎯</span>
+                    <span class="decide-label">帮忙选</span>
+                </div>
+            </div>
+            <div class="decide-result hidden" id="decide-result"></div>
+            <button class="btn btn-secondary" style="width:100%;padding:10px;margin-top:8px" onclick="closeDecider()">关闭</button>
         </div>
     </div>
 
@@ -661,10 +703,16 @@ function renderChat(){
     }else{
         if(welcome) welcome.style.display="none";
         msgs.forEach(m=>{
-            const d=document.createElement("div"); d.className="message "+m.role;
-            let content = m.content;
-            if(m.weather) content = renderWeatherCard(m.weather) + content;
-            d.innerHTML=`<div class="msg-avatar">${m.role==="user"?"❓":"✅"}</div><div class="msg-bubble">${fmt(content)}</div>`;
+            const d=document.createElement("div");
+            if(m.role==="fortune"){
+                d.className="message assistant";
+                d.innerHTML=`<div class="msg-avatar">🔮</div><div class="msg-bubble" style="border:none;background:transparent;padding:0">${m.content}</div>`;
+            }else{
+                d.className="message "+m.role;
+                let content = m.content;
+                if(m.weather) content = renderWeatherCard(m.weather) + content;
+                d.innerHTML=`<div class="msg-avatar">${m.role==="user"?"❓":"✅"}</div><div class="msg-bubble">${fmt(content)}</div>`;
+            }
             c.appendChild(d);
         });
     }
@@ -687,6 +735,75 @@ function showTyping(){
     c.appendChild(d); c.scrollTop=c.scrollHeight;
 }
 function removeTyping(){ const e=document.getElementById("typing-indicator"); if(e) e.remove(); }
+
+// ============ FORTUNE ============
+const FORTUNES = [
+    {stars:5,text:"今天运势极佳，做什么都顺风顺水！大胆去尝试新事物吧。",tip:"幸运色：金色 | 幸运数字：7"},
+    {stars:5,text:"贵人运爆棚，可能会遇到对你很重要的人。保持微笑，好运自来。",tip:"幸运色：紫色 | 幸运数字：9"},
+    {stars:5,text:"创意灵感源源不断的一天，适合写写画画，把你的想法记录下来。",tip:"幸运色：蓝色 | 幸运数字：3"},
+    {stars:4,text:"心情不错，事情都在往好的方向发展。适合约朋友出来聊聊天。",tip:"幸运色：粉色 | 幸运数字：6"},
+    {stars:4,text:"财运小旺，可能会有意外的小收入。不过别乱花钱哦。",tip:"幸运色：绿色 | 幸运数字：8"},
+    {stars:4,text:"今天适合学习新东西，脑筋转得特别快。趁热打铁搞点正事。",tip:"幸运色：橙色 | 幸运数字：2"},
+    {stars:4,text:"感情运不错的一天，勇敢表达自己的想法吧，会有好回应的。",tip:"幸运色：红色 | 幸运数字：5"},
+    {stars:4,text:"工作效率很高，能搞定堆积已久的任务。做完之后记得犒劳自己。",tip:"幸运色：白色 | 幸运数字：1"},
+    {stars:3,text:"平平淡淡的一天，没什么大起大落。享受这份宁静也挺好。",tip:"幸运色：灰色 | 幸运数字：4"},
+    {stars:3,text:"可能会有点小麻烦，但别担心，午后就自然解决了。放宽心。",tip:"幸运色：黄色 | 幸运数字：0"},
+    {stars:3,text:"今天适合做减法，把不必要的东西清理一下，心情会好很多。",tip:"幸运色：青色 | 幸运数字：3"},
+    {stars:3,text:"可能会听到一个好消息，但别急着高兴，先确认清楚再说。",tip:"幸运色：棕色 | 幸运数字：7"},
+    {stars:3,text:"行动力不错但容易分心，一次只做一件事，做完再说。",tip:"幸运色：黑色 | 幸运数字：5"},
+    {stars:2,text:"今天有点水逆，小事容易搞砸。不急不躁，慢慢来就好。",tip:"幸运色：蓝色 | 幸运数字：2"},
+    {stars:2,text:"可能会遇到一点小争执，别往心里去，不是你一个人的问题。",tip:"幸运色：绿色 | 幸运数字：8"},
+    {stars:2,text:"今天适合窝在家里休息，不适合冒险。给自己放个假吧。",tip:"幸运色：紫色 | 幸运数字：1"},
+    {stars:1,text:"今天运势低迷，但没关系，明天又是新的一天！喝杯热茶暖暖心。",tip:"幸运色：暖橙 | 幸运数字：9"},
+    {stars:1,text:"可能会有点低落，但别忘了你已经很棒了。对自己好一点。",tip:"幸运色：粉色 | 幸运数字：6"},
+];
+
+function showFortune(){
+    const today = new Date().toDateString();
+    const seed = today.split("").reduce((a,c)=>a+c.charCodeAt(0),0);
+    const f = FORTUNES[seed % FORTUNES.length];
+    const stars = "⭐".repeat(f.stars) + "☆".repeat(5-f.stars);
+    const card = `<div class="fortune-card">
+        <div class="fortune-stars">${stars}</div>
+        <div class="fortune-text">${f.text}</div>
+        <div class="fortune-tip">${f.tip}</div>
+    </div>`;
+
+    const conv = getActiveConv();
+    if(!conv || !activeCid) newConversation();
+    const c2 = getActiveConv();
+    c2.messages.push({role:"fortune",content:card});
+    saveConvs(); renderChat();
+    showToast("🔮 今日运势已揭晓");
+}
+
+// ============ DECIDER ============
+function openDecider(){ document.getElementById("decider-modal").classList.remove("hidden"); document.getElementById("decide-result").classList.add("hidden"); }
+function closeDecider(){ document.getElementById("decider-modal").classList.add("hidden"); }
+
+function doDecide(type){
+    const r = document.getElementById("decide-result");
+    r.classList.remove("hidden");
+    if(type==="coin"){
+        r.textContent = Math.random()<0.5 ? "🪙 正面！" : "🪙 反面！";
+    }else if(type==="dice"){
+        const n = Math.floor(Math.random()*6)+1;
+        r.textContent = `🎲 ${n} 点！`;
+    }
+    r.style.animation="none"; void r.offsetWidth; r.style.animation="fadeIn .3s ease";
+}
+
+function promptPick(){
+    const input = prompt("左右为难？告诉我几个选项（用逗号隔开）：\n比如：火锅,日料,烧烤");
+    if(!input || !input.trim()) return;
+    const opts = input.split(/[,，、]/).map(s=>s.trim()).filter(s=>s);
+    if(opts.length<2){ showToast("至少写两个选项哦"); return; }
+    const pick = opts[Math.floor(Math.random()*opts.length)];
+    const r = document.getElementById("decide-result");
+    r.classList.remove("hidden");
+    r.textContent = `🎯 就选「${pick}」！`;
+    r.style.animation="none"; void r.offsetWidth; r.style.animation="fadeIn .3s ease";
+}
 
 // ============ DINO GAME ============
 let dinoCtx, dinoAnimId, dinoState;
