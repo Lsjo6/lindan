@@ -1360,15 +1360,10 @@ function gomokuMouseLeave(){ if(gomokuHoverCell){ gomokuHoverCell = null; drawGo
 let gomokuLastPlaceTime = 0;
 
 function gomokuTouchStart(e){
-    // Place stone on tap, prevent click from double-firing
-    const now = Date.now();
-    if(now - gomokuLastPlaceTime < 500) return;
-    gomokuLastPlaceTime = now;
-    e.preventDefault();
     const t = e.touches[0];
     if(t){
-        const fakeE = {clientX: t.clientX, clientY: t.clientY};
-        gomokuClick(fakeE);
+        e.preventDefault();
+        gomokuClick({clientX: t.clientX, clientY: t.clientY});
     }
 }
 
