@@ -103,6 +103,24 @@
         .game-bar .game-label{flex:1;color:var(--accent);font-weight:500}
         .game-bar button{background:var(--border);border:none;color:var(--text);padding:3px 10px;border-radius:8px;font-size:11px;cursor:pointer}
 
+        /* Translator */
+        .translator{text-align:center}
+        .trans-langs{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:14px}
+        .trans-lang{font-size:15px;padding:8px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);outline:none;text-align:center;font-family:inherit;cursor:pointer;max-width:130px}
+        .trans-arrow{font-size:20px;color:var(--accent);cursor:pointer;font-weight:700;flex-shrink:0}
+        .trans-mic{width:76px;height:76px;border-radius:50%;border:3px solid var(--accent);background:var(--surface2);color:var(--accent);font-size:34px;cursor:pointer;margin:14px auto;display:flex;align-items:center;justify-content:center;transition:all .2s}
+        .trans-mic.recording{background:#f72585;border-color:#f72585;color:#fff;animation:pulse 1.5s ease infinite}
+        @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(247,37,133,.4)}50%{box-shadow:0 0 0 20px rgba(247,37,133,0)}}
+        .trans-hint{font-size:12px;color:var(--text2);margin:6px 0}
+        .trans-results{background:var(--bg);border-radius:12px;padding:14px;text-align:left;margin:10px 0;min-height:40px;display:none}
+        .trans-results.visible{display:block}
+        .trans-orig{font-size:14px;color:var(--text2);margin-bottom:3px}
+        .trans-trans{font-size:16px;color:var(--text);font-weight:500}
+        .trans-speak{background:none;border:none;color:var(--accent);font-size:20px;cursor:pointer;float:right;margin-top:-2px}
+        .trans-quick{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:8px}
+        .trans-quick button{font-size:11px;padding:5px 10px;border-radius:12px;border:1px solid var(--border);background:var(--bg);color:var(--text);cursor:pointer;white-space:nowrap}
+        .trans-quick button:active{background:var(--accent);color:#fff}
+
         /* Dino Game */
         #dino-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:170;display:flex;align-items:center;justify-content:center;flex-direction:column}
         #dino-overlay.hidden{display:none}
@@ -235,6 +253,7 @@
                 <button class="quick-btn" onclick="openGameSelector()">🎮 小游戏</button>
                 <button class="quick-btn" onclick="showFortune()">🔮 今日运势</button>
                 <button class="quick-btn" onclick="openDecider()">🤔 做决定</button>
+                <button class="quick-btn" onclick="openTranslator()">🎙️ 实时传译</button>
             </div>
         </div>
     </div>
@@ -266,6 +285,49 @@
                 </div>
             </div>
             <button class="btn btn-secondary" style="width:100%;padding:10px" onclick="closeGameSelector()">取消</button>
+        </div>
+    </div>
+
+    <!-- Translator Modal -->
+    <div class="modal-overlay hidden" id="translator-modal">
+        <div class="modal translator">
+            <h3>🎙️ 实时传译</h3>
+            <div class="trans-langs">
+                <select class="trans-lang" id="trans-from" onchange="transFromChanged()">
+                    <option value="zh-CN">中文</option>
+                    <option value="en-US">English</option>
+                    <option value="ja-JP">日本語</option>
+                    <option value="ko-KR">한국어</option>
+                    <option value="fr-FR">Français</option>
+                    <option value="de-DE">Deutsch</option>
+                    <option value="es-ES">Español</option>
+                </select>
+                <span class="trans-arrow" onclick="swapTransLangs()">⇄</span>
+                <select class="trans-lang" id="trans-to">
+                    <option value="zh-CN">中文</option>
+                    <option value="en-US" selected>English</option>
+                    <option value="ja-JP">日本語</option>
+                    <option value="ko-KR">한국어</option>
+                    <option value="fr-FR">Français</option>
+                    <option value="de-DE">Deutsch</option>
+                    <option value="es-ES">Español</option>
+                </select>
+            </div>
+            <div class="trans-quick">
+                <button onclick="quickTrans('zh-CN','en-US')">中→英</button>
+                <button onclick="quickTrans('en-US','zh-CN')">英→中</button>
+                <button onclick="quickTrans('zh-CN','ja-JP')">中→日</button>
+                <button onclick="quickTrans('zh-CN','ko-KR')">中→韩</button>
+                <button onclick="quickTrans('en-US','ja-JP')">英→日</button>
+            </div>
+            <div class="trans-mic" id="trans-mic" onclick="toggleListening()">🎤</div>
+            <div class="trans-hint" id="trans-hint">点击麦克风开始说话</div>
+            <div class="trans-results" id="trans-results">
+                <div class="trans-orig" id="trans-orig"></div>
+                <button class="trans-speak" id="trans-speak-btn" onclick="speakTrans()" style="display:none">🔊</button>
+                <div class="trans-trans" id="trans-trans"></div>
+            </div>
+            <button class="btn btn-secondary" style="width:100%;padding:10px;margin-top:8px" onclick="closeTranslator()">关闭</button>
         </div>
     </div>
 
@@ -804,6 +866,108 @@ function promptPick(){
     r.classList.remove("hidden");
     r.textContent = `🎯 就选「${pick}」！`;
     r.style.animation="none"; void r.offsetWidth; r.style.animation="fadeIn .3s ease";
+}
+
+// ============ TRANSLATOR ============
+let transRecognition = null;
+let transIsListening = false;
+
+function openTranslator(){
+    document.getElementById("translator-modal").classList.remove("hidden");
+    document.getElementById("trans-results").classList.remove("visible");
+    document.getElementById("trans-speak-btn").style.display="none";
+    document.getElementById("trans-hint").textContent="点击麦克风开始说话";
+}
+function closeTranslator(){ stopListening(); document.getElementById("translator-modal").classList.add("hidden"); }
+
+function quickTrans(from, to){
+    document.getElementById("trans-from").value=from;
+    document.getElementById("trans-to").value=to;
+    document.getElementById("trans-results").classList.remove("visible");
+}
+
+function swapTransLangs(){
+    const f=document.getElementById("trans-from"), t=document.getElementById("trans-to");
+    const tmp=f.value; f.value=t.value; t.value=tmp;
+}
+
+function transFromChanged(){
+    // Auto-adjust language code for speech recognition
+}
+
+function toggleListening(){
+    if(transIsListening) stopListening();
+    else startListening();
+}
+
+function startListening(){
+    if(!apiKey){ showToast("请先设置API密钥"); return; }
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(!SpeechRecognition){ showToast("你的浏览器不支持语音识别"); return; }
+
+    transRecognition = new SpeechRecognition();
+    transRecognition.lang = document.getElementById("trans-from").value;
+    transRecognition.interimResults = false;
+    transRecognition.continuous = false;
+
+    transRecognition.onstart = ()=>{
+        transIsListening = true;
+        const mic = document.getElementById("trans-mic");
+        mic.classList.add("recording"); mic.textContent="🔴";
+        document.getElementById("trans-hint").textContent="正在听...";
+        document.getElementById("trans-results").classList.remove("visible");
+    };
+
+    transRecognition.onresult = async (e)=>{
+        const text = e.results[0][0].transcript;
+        document.getElementById("trans-orig").textContent = text;
+        document.getElementById("trans-trans").textContent = "翻译中...";
+        document.getElementById("trans-results").classList.add("visible");
+        document.getElementById("trans-hint").textContent="点击麦克风继续说话";
+
+        const fromLang = document.getElementById("trans-from").value;
+        const toLang = document.getElementById("trans-to").value;
+        const langNames = {"zh-CN":"中文","en-US":"英文","ja-JP":"日文","ko-KR":"韩文","fr-FR":"法文","de-DE":"德文","es-ES":"西班牙文"};
+        const fromName = langNames[fromLang]||fromLang;
+        const toName = langNames[toLang]||toLang;
+
+        try{
+            const sys = `你是一个翻译助手。把用户输入的${fromName}翻译成${toName}。只输出翻译结果，不要加解释。如果原文已经是${toName}，就直接输出原文。`;
+            const result = await callDeepSeek(apiKey, "deepseek-v4-flash", [{role:"user",content:text}], sys);
+            document.getElementById("trans-trans").textContent = result.trim();
+            document.getElementById("trans-speak-btn").style.display="";
+        }catch(e){
+            document.getElementById("trans-trans").textContent = "翻译失败："+e.message;
+            document.getElementById("trans-speak-btn").style.display="none";
+        }
+    };
+
+    transRecognition.onerror = (e)=>{
+        stopListening();
+        document.getElementById("trans-hint").textContent = "识别失败，再试一次";
+    };
+
+    transRecognition.onend = ()=>{
+        stopListening();
+    };
+
+    transRecognition.start();
+}
+
+function stopListening(){
+    transIsListening = false;
+    const mic = document.getElementById("trans-mic");
+    mic.classList.remove("recording"); mic.textContent="🎤";
+    if(transRecognition){ try{ transRecognition.stop(); }catch(e){} }
+}
+
+function speakTrans(){
+    const text = document.getElementById("trans-trans").textContent;
+    if(!text || text==="翻译中...") return;
+    const lang = document.getElementById("trans-to").value;
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = lang; u.rate = 0.9;
+    speechSynthesis.speak(u);
 }
 
 // ============ DINO GAME ============
