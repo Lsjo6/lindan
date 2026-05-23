@@ -1307,36 +1307,38 @@ function getVoice(){
     }catch(e){return null;}
 }
 function populateVoices(){ /* no-op: voices are hardcoded in HTML */ }
-function previewVoice(){
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance("你好，我是杰少，这是试听。");
-    const v = getVoice(); if(v) u.voice = v;
-    u.rate = 0.9;
-    speechSynthesis.speak(u);
+function doSpeak(text, isEN){
+    return new Promise((resolve, reject) => {
+        speechSynthesis.cancel();
+        // Chrome needs a tick after cancel before speaking
+        setTimeout(() => {
+            const u = new SpeechSynthesisUtterance(text);
+            u.lang = isEN ? "en-US" : "zh-CN";
+            u.rate = 0.9;
+            const v = getVoice(); if(v) u.voice = v;
+            u.onend = () => resolve();
+            u.onerror = (e) => reject(e.error || "语音失败");
+            speechSynthesis.speak(u);
+        }, 100);
+    });
 }
-function autoResize(el){ el.style.height="auto"; el.style.height=Math.min(el.scrollHeight,110)+"px"; }
-function saveChat(){ saveConvs(); }
-
+function previewVoice(){
+    doSpeak("你好，我是杰少，这是试听。", false).catch(e => showToast("试听失败："+e));
+}
 function speakText(btn){
-    speechSynthesis.cancel();
     const text = btn.getAttribute("data-text");
     if(!text) return;
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = /[a-zA-Z]{3,}/.test(text) ? "en-US" : "zh-CN";
-    u.rate = 0.9;
-    const v = getVoice(); if(v) u.voice = v;
-    speechSynthesis.speak(u);
+    const isEN = /[a-zA-Z]{3,}/.test(text);
+    doSpeak(text, isEN);
 }
 function readAloud(){
     const text = document.getElementById("msg-input").value.trim();
     if(!text){ showToast("请先输入要朗读的文字"); return; }
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = /[a-zA-Z]{3,}/.test(text) ? "en-US" : "zh-CN";
-    u.rate = 0.9;
-    const v = getVoice(); if(v) u.voice = v;
-    speechSynthesis.speak(u);
+    const isEN = /[a-zA-Z]{3,}/.test(text);
+    doSpeak(text, isEN);
 }
+function autoResize(el){ el.style.height="auto"; el.style.height=Math.min(el.scrollHeight,110)+"px"; }
+function saveChat(){ saveConvs(); }
 function clearChat(){
     const conv = getActiveConv();
     if(!conv || conv.messages.length===0) return;
