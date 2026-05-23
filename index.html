@@ -156,6 +156,9 @@
         #send-btn{width:40px;height:40px;border-radius:50%;border:none;background:var(--accent);color:#fff;font-size:20px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .2s}
         #send-btn:active{background:var(--accent2);transform:scale(.95)}
         #send-btn:disabled{background:var(--border);cursor:not-allowed}
+        #cam-btn{width:40px;height:40px;border-radius:50%;border:none;background:var(--surface2);color:var(--text);font-size:18px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .2s}
+        #cam-btn:active{background:var(--accent);transform:scale(.95)}
+        .msg-bubble .photo-preview{max-width:200px;border-radius:12px;margin-bottom:6px;display:block;border:2px solid var(--border)}
 
         .panel-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;z-index:100;animation:fadeIn .2s ease}
         .panel-overlay.hidden{display:none}
@@ -371,6 +374,8 @@
         </div>
         <div class="mode-indicator" id="mode-indicator"></div>
         <div class="input-row">
+            <input type="file" id="photo-input" accept="image/*" capture="environment" onchange="handlePhoto(event)" style="display:none">
+            <button id="cam-btn" onclick="photoData ? cancelPhoto() : document.getElementById('photo-input').click()" title="拍照识图">📷</button>
             <textarea id="msg-input" rows="1" placeholder="和杰少说点什么..." oninput="autoResize(this);onTyping()"></textarea>
             <button id="send-btn" onclick="sendMessage()">➤</button>
         </div>
@@ -494,6 +499,7 @@ let apiKey = "", model = "deepseek-v4-flash", systemPrompt = "";
 let currentPersonality = "default", smartSwitch = true, isLoading = false;
 let journal = [], expenses = [], todos = [], memories = [];
 let activeGame = null; // null | 'guess' | 'idiom' | 'riddle'
+let photoData = null; // { base64, mime } for pending photo
 
 // ============ CONVERSATIONS ============
 function loadConvs(){
@@ -632,9 +638,18 @@ function renderWeatherCard(w){
 }
 
 // ============ DEEPSEEK API (direct call) ============
-async function callDeepSeek(apiKey, model, messages, systemText){
+async function callDeepSeek(apiKey, model, messages, systemText, imageBase64){
     let dsMessages = [{"role":"system","content":systemText}];
-    for(const m of messages) dsMessages.push({"role":m.role,"content":m.content});
+    for(const m of messages){
+        if(m.image){
+            dsMessages.push({"role":m.role,"content":[
+                {"type":"image_url","image_url":{"url":m.image}},
+                {"type":"text","text":m.content||"请描述这张图片"}
+            ]});
+        } else {
+            dsMessages.push({"role":m.role,"content":m.content});
+        }
+    }
 
     const body = {model, messages: dsMessages, max_tokens: 4096};
 
@@ -774,9 +789,10 @@ function renderChat(){
                 d.innerHTML=`<div class="msg-avatar">🔮</div><div class="msg-bubble" style="border:none;background:transparent;padding:0">${m.content}</div>`;
             }else{
                 d.className="message "+m.role;
-                let content = m.content;
+                let imgHtml = m.image ? `<img src="${m.image}" class="photo-preview" alt="用户上传">` : "";
+                let content = imgHtml + fmt(m.content);
                 if(m.weather) content = renderWeatherCard(m.weather) + content;
-                d.innerHTML=`<div class="msg-avatar">${m.role==="user"?"❓":"✅"}</div><div class="msg-bubble">${fmt(content)}</div>`;
+                d.innerHTML=`<div class="msg-avatar">${m.role==="user"?"❓":"✅"}</div><div class="msg-bubble">${content}</div>`;
             }
             c.appendChild(d);
         });
@@ -1162,31 +1178,38 @@ async function sendMessage(content){
     if(isLoading) return;
     const input=document.getElementById("msg-input");
     const text=content||input.value.trim();
-    if(!text) return;
+    const hasPhoto = !!photoData;
+    if(!text && !hasPhoto) return;
     if(!apiKey){ showToast("请先点⚙️设置API密钥"); openSettings(); return; }
 
     if(!activeCid || !getActiveConv()) newConversation();
 
     isLoading=true;
     document.getElementById("send-btn").disabled=true;
+    const currentPhoto = photoData;
+    photoData = null;
+    document.getElementById("cam-btn").textContent = "📷";
+    document.getElementById("msg-input").placeholder = "和杰少说点什么...";
     input.value=""; input.style.height="auto";
     document.getElementById("mode-indicator").textContent="";
     const welcome=document.getElementById("welcome-box");
     if(welcome) welcome.style.display="none";
 
-    const useModel = smartSwitch ? detectMode(text) : model;
+    const displayText = text || (hasPhoto ? "帮我看看这张图片" : "");
+    const useModel = smartSwitch ? detectMode(displayText) : model;
     if(smartSwitch && useModel!==model){
         showToast(useModel==="deepseek-v4-pro"?"🧠 自动切到V4 Pro深度思考":"💬 自动切到V4 Flash");
     }
 
     const conv = getActiveConv();
-    if(conv && conv.messages.length===0){ conv.title = autoTitle(text); saveConvs(); renderSidebar(); }
+    if(conv && conv.messages.length===0){ conv.title = autoTitle(displayText); saveConvs(); renderSidebar(); }
 
     // Weather check
     let weatherData = null;
-    if(WEATHER_KW.test(text)) weatherData = await checkWeather(text);
+    if(WEATHER_KW.test(displayText)) weatherData = await checkWeather(displayText);
 
-    const msgObj = {role:"user",content:text};
+    const msgObj = {role:"user",content:displayText};
+    if(currentPhoto){ msgObj.image = currentPhoto.base64; msgObj.content = text || "请描述这张图片"; }
     if(weatherData) msgObj.weather = weatherData;
     conv.messages.push(msgObj);
     saveConvs(); renderChat();
@@ -1202,17 +1225,17 @@ async function sendMessage(content){
         sys = sys + `\n\n[用户查询了${weatherData.city}的天气：当前${weatherData.temp}°C，${weatherData.desc}，湿度${weatherData.humidity}%，体感温度${weatherData.feels_like}°C。请在回复中自然地告诉用户这些天气信息。]`;
     }
     // Check for stop game command
-    if(activeGame && /结束游戏|退出游戏|不玩了|停止游戏/.test(text)){
+    if(activeGame && /结束游戏|退出游戏|不玩了|停止游戏/.test(displayText)){
         activeGame = null; saveGameState();
         document.getElementById("game-bar").classList.add("hidden");
     }
 
     try{
-        const chatMsgs = conv.messages.map(m=>({role:m.role,content:m.content}));
+        const chatMsgs = conv.messages.map(m=>({role:m.role,content:m.content,image:m.image||null}));
         const reply = await callDeepSeek(apiKey, useModel, chatMsgs, sys);
         removeTyping();
         conv.messages.push({role:"assistant",content:reply});
-        extractAndSaveMemory(text, reply);
+        extractAndSaveMemory(displayText, reply);
         saveConvs(); renderChat(); renderSidebar();
     }catch(err){
         removeTyping();
@@ -1225,6 +1248,34 @@ async function sendMessage(content){
 }
 
 function sendQuick(t){ document.getElementById("msg-input").value=t; sendMessage(t); }
+function handlePhoto(e){
+    const file = e.target.files[0];
+    if(!file) return;
+    if(file.size > 50*1024*1024){ showToast("图片不能超过50MB"); return; }
+    const img = new Image();
+    img.onload = function(){
+        const maxW = 512, maxH = 512;
+        let w = img.width, h = img.height;
+        if(w > maxW || h > maxH){
+            const r = Math.min(maxW/w, maxH/h);
+            w = Math.round(w*r); h = Math.round(h*r);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(img.src);
+        photoData = { base64: canvas.toDataURL("image/jpeg", 0.7), mime: "image/jpeg" };
+        document.getElementById("cam-btn").textContent = "📸";
+        document.getElementById("msg-input").placeholder = "描述这张图片（或直接发送）...";
+        document.getElementById("msg-input").focus();
+    };
+    e.target.value = "";
+}
+function cancelPhoto(){
+    photoData = null;
+    document.getElementById("cam-btn").textContent = "📷";
+    document.getElementById("msg-input").placeholder = "和杰少说点什么...";
+}
 function autoResize(el){ el.style.height="auto"; el.style.height=Math.min(el.scrollHeight,110)+"px"; }
 function saveChat(){ saveConvs(); }
 
