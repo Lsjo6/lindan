@@ -52,18 +52,27 @@
 
         #chat-container{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth}
         .message{display:flex;gap:8px;max-width:88%;animation:fadeIn .3s ease}
-        @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-        .message.user{align-self:flex-end;flex-direction:row-reverse}
-        .message.assistant{align-self:flex-start}
-        .msg-avatar{width:28px;height:28px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px}
-        .message.user .msg-avatar{background:linear-gradient(135deg,#4cc9f0,#4895ef)}
-        .message.assistant .msg-avatar{background:linear-gradient(135deg,#7c5cfc,#f72585)}
-        .msg-bubble{padding:10px 13px;border-radius:15px;font-size:14.5px;line-height:1.55;word-break:break-word}
-        .message.user .msg-bubble{background:var(--user-bubble);border-bottom-right-radius:4px}
-        .message.assistant .msg-bubble{background:var(--ai-bubble);border:1px solid var(--border);border-bottom-left-radius:4px}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes fadeInLeft{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:translateX(0)}}
+        @keyframes fadeInRight{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:translateX(0)}}
+        .message{display:flex;gap:8px;padding:2px 12px;animation:fadeIn .35s ease}
+        .message.user{justify-content:flex-end;animation-name:fadeInRight}
+        .message.assistant{justify-content:flex-start;animation-name:fadeInLeft}
+        .msg-avatar{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px;position:relative;top:2px}
+        .message.user .msg-avatar{background:linear-gradient(135deg,#4cc9f0,#3b82f6);box-shadow:0 2px 8px rgba(76,201,240,.25)}
+        .message.assistant .msg-avatar{background:linear-gradient(135deg,#7c5cfc,#f72585);box-shadow:0 2px 8px rgba(124,92,252,.25)}
+        .msg-bubble{padding:10px 15px;border-radius:20px;font-size:14.5px;line-height:1.55;word-break:break-word;max-width:80%;position:relative;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+        .message.user .msg-bubble{background:var(--user-bubble);border-bottom-right-radius:8px}
+        .message.assistant .msg-bubble{background:var(--ai-bubble);border:1px solid var(--border);border-bottom-left-radius:8px}
+        .msg-bubble .msg-time{font-size:10.5px;color:var(--text2);margin-top:6px;opacity:.7;user-select:none}
+        .msg-bubble .msg-actions{display:flex;gap:6px;margin-top:5px;justify-content:flex-end}
+        .msg-bubble .msg-act-btn{width:28px;height:28px;border-radius:50%;border:none;background:var(--surface2);color:var(--text2);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;opacity:0}
+        .message:hover .msg-act-btn{opacity:1}
+        .msg-bubble .msg-act-btn:active{background:var(--accent);color:#fff;transform:scale(.9)}
         .msg-bubble p{margin:0 0 5px}.msg-bubble p:last-child{margin:0}
-        .msg-bubble code{background:rgba(255,255,255,.08);padding:2px 5px;border-radius:4px;font-size:13px}
-        .msg-bubble pre{background:rgba(0,0,0,.3);padding:10px 12px;border-radius:8px;overflow-x:auto;margin:5px 0;font-size:12.5px}
+        .msg-bubble code{background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px;font-size:13px}
+        .msg-bubble pre{background:rgba(0,0,0,.3);padding:12px 14px;border-radius:10px;overflow-x:auto;margin:6px 0;font-size:12.5px;border:1px solid var(--border)}
+        .msg-bubble a{color:var(--accent);text-decoration:underline}
         .msg-bubble img{border-radius:10px;max-width:100%;margin:6px 0;cursor:pointer}
         .msg-bubble .img-loading{display:flex;align-items:center;gap:8px;padding:12px;background:var(--surface2);border-radius:10px;font-size:13px;color:var(--text2);margin:6px 0}
         .typing-dots{display:flex;gap:4px;padding:4px 0}.typing-dots span{width:7px;height:7px;border-radius:50%;background:var(--text2);animation:bounce 1.4s infinite ease-in-out}.typing-dots span:nth-child(2){animation-delay:.2s}.typing-dots span:nth-child(3){animation-delay:.4s}
@@ -118,7 +127,6 @@
         .trans-results.visible{display:block}
         .trans-orig{font-size:14px;color:var(--text2);margin-bottom:3px}
         .trans-trans{font-size:16px;color:var(--text);font-weight:500}
-        .trans-speak{background:none;border:none;color:var(--accent);font-size:20px;cursor:pointer;float:right;margin-top:-2px}
         .trans-quick{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:8px}
         .trans-quick button{font-size:11px;padding:5px 10px;border-radius:12px;border:1px solid var(--border);background:var(--bg);color:var(--text);cursor:pointer;white-space:nowrap}
         .trans-quick button:active{background:var(--accent);color:#fff}
@@ -159,8 +167,6 @@
         #cam-btn{width:40px;height:40px;border-radius:50%;border:none;background:var(--surface2);color:var(--text);font-size:18px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .2s}
         #cam-btn:active{background:var(--accent);transform:scale(.95)}
         .msg-bubble .photo-preview{max-width:200px;border-radius:12px;margin-bottom:6px;display:block;border:2px solid var(--border)}
-        .msg-bubble .speak-msg-btn{float:right;width:26px;height:26px;border-radius:50%;border:none;background:var(--surface2);color:var(--text);font-size:12px;cursor:pointer;margin:0 0 4px 6px;display:flex;align-items:center;justify-content:center;transition:all .15s}
-        .msg-bubble .speak-msg-btn:active{background:var(--accent);transform:scale(.9)}
 
         .panel-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;z-index:100;animation:fadeIn .2s ease}
         .panel-overlay.hidden{display:none}
@@ -261,7 +267,6 @@
                 <button class="quick-btn" onclick="showFortune()">🔮 今日运势</button>
                 <button class="quick-btn" onclick="openDecider()">🤔 做决定</button>
                 <button class="quick-btn" onclick="openTranslator()">🎙️ 实时传译</button>
-                <button class="quick-btn" onclick="readAloud()">🔊 朗读</button>
             </div>
         </div>
     </div>
@@ -332,7 +337,6 @@
             <div class="trans-hint" id="trans-hint">点击麦克风开始说话</div>
             <div class="trans-results" id="trans-results">
                 <div class="trans-orig" id="trans-orig"></div>
-                <button class="trans-speak" id="trans-speak-btn" onclick="speakTrans()" style="display:none">🔊</button>
                 <div class="trans-trans" id="trans-trans"></div>
             </div>
             <button class="btn btn-secondary" style="width:100%;padding:10px;margin-top:8px" onclick="closeTranslator()">关闭</button>
@@ -418,20 +422,6 @@
                 <option value="on">开启（遇到数学/代码自动切V4 Pro）</option>
                 <option value="off">关闭（始终用手动选择的模型）</option>
             </select>
-            <label>朗读音色</label>
-            <div style="display:flex;gap:6px"><select id="voice-select" style="flex:1">
-            <option value="">默认音色</option>
-            <option value="Microsoft Huihui">慧慧 - 中文女声</option>
-            <option value="Microsoft Kangkang">康康 - 中文男声</option>
-            <option value="Microsoft Yaoyao">瑶瑶 - 中文女声</option>
-            <option value="Microsoft Zira">Zira - 英文女声</option>
-            <option value="Microsoft David">David - 英文男声</option>
-            <option value="Microsoft Mark">Mark - 英文男声</option>
-            <option value="Google 普通话">Google 普通话</option>
-            <option value="Google 粤语">Google 粤语</option>
-            <option value="Google 英語(美國)">Google 英语</option>
-            <option value="Google 日本語">Google 日语</option>
-            </select><button class="btn btn-secondary" onclick="previewVoice()" style="flex-shrink:0;padding:8px 14px">🔊 试听</button></div>
             <label>主题配色</label>
             <div class="theme-grid" id="theme-grid"></div>
             <div class="btn-row">
@@ -517,7 +507,6 @@ let currentPersonality = "default", smartSwitch = true, isLoading = false;
 let journal = [], expenses = [], todos = [], memories = [];
 let activeGame = null; // null | 'guess' | 'idiom' | 'riddle'
 let photoData = null; // { base64, mime } for pending photo
-let selectedVoice = "";
 
 // ============ CONVERSATIONS ============
 function loadConvs(){
@@ -704,7 +693,6 @@ function init(){
     systemPrompt = localStorage.getItem("ld_system")||"";
     currentPersonality = localStorage.getItem("ld_personality")||"default";
     smartSwitch = localStorage.getItem("ld_smart")!=="off";
-    selectedVoice = localStorage.getItem("ld_voice")||"";
     try{ journal = JSON.parse(localStorage.getItem("ld_journal")||"[]"); }catch(e){}
     try{ expenses = JSON.parse(localStorage.getItem("ld_expenses")||"[]"); }catch(e){}
     try{ todos = JSON.parse(localStorage.getItem("ld_todos")||"[]"); }catch(e){}
@@ -805,14 +793,16 @@ function renderChat(){
             const d=document.createElement("div");
             if(m.role==="fortune"){
                 d.className="message assistant";
-                d.innerHTML=`<div class="msg-avatar">🔮</div><div class="msg-bubble" style="border:none;background:transparent;padding:0">${m.content}</div>`;
+                d.innerHTML=`<div class="msg-avatar">🔮</div><div class="msg-bubble" style="border:none;background:transparent;padding:0;box-shadow:none">${m.content}</div>`;
             }else{
                 d.className="message "+m.role;
+                const avatar = m.role==="user" ? "😎" : "🤖";
                 let imgHtml = m.image ? `<img src="${m.image}" class="photo-preview" alt="用户上传">` : "";
-                let content = imgHtml + fmt(m.content);
-                if(m.weather) content = renderWeatherCard(m.weather) + content;
-                const speakBtn = m.role==="assistant" ? `<button class="speak-msg-btn" onclick="speakText(this)" data-text="${escAttr(m.content)}" title="朗读">🔊</button>` : "";
-                d.innerHTML=`<div class="msg-avatar">${m.role==="user"?"❓":"✅"}</div><div class="msg-bubble">${speakBtn}${content}</div>`;
+                let body = imgHtml + fmt(m.content);
+                if(m.weather) body = renderWeatherCard(m.weather) + body;
+                const time = m.time ? `<div class="msg-time">${fmtTime(m.time)}</div>` : "";
+                const copyBtn = m.role==="assistant" ? `<div class="msg-actions"><button class="msg-act-btn" onclick="copyMsg(this)" data-text="${escAttr(m.content)}" title="复制">📋</button></div>` : "";
+                d.innerHTML=`<div class="msg-avatar">${avatar}</div><div class="msg-bubble">${body}${time}${copyBtn}</div>`;
             }
             c.appendChild(d);
         });
@@ -820,8 +810,13 @@ function renderChat(){
     c.scrollTop=c.scrollHeight;
 }
 
+function fmtTime(ts){ const d=new Date(ts),n=new Date(); const pad=n=>String(n).padStart(2,"0"); const t=pad(d.getHours())+":"+pad(d.getMinutes()); if(d.toDateString()===n.toDateString()) return t; return pad(d.getMonth()+1)+"/"+pad(d.getDate())+" "+t; }
+function copyMsg(btn){ const text=btn.getAttribute("data-text"); if(!text) return; navigator.clipboard.writeText(text).then(()=>{ btn.textContent="✅"; setTimeout(()=>btn.textContent="📋",1500); }).catch(()=>showToast("复制失败")); }
+
 function fmt(t){
     let h=t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    // Auto-link URLs (before other formatting)
+    h=h.replace(/(https?:\/\/[^\s<>\[\]{}|\\^`]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>');
     h=h.replace(/```(\w*)\n?([\s\S]*?)```/g,"<pre><code>$2</code></pre>");
     h=h.replace(/`([^`]+)`/g,"<code>$1</code>");
     h=h.replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>");
@@ -832,7 +827,7 @@ function fmt(t){
 function showTyping(){
     const c=document.getElementById("chat-container");
     const d=document.createElement("div"); d.className="message assistant"; d.id="typing-indicator";
-    d.innerHTML=`<div class="msg-avatar">✅</div><div class="msg-bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div>`;
+    d.innerHTML=`<div class="msg-avatar">🤖</div><div class="msg-bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div>`;
     c.appendChild(d); c.scrollTop=c.scrollHeight;
 }
 function removeTyping(){ const e=document.getElementById("typing-indicator"); if(e) e.remove(); }
@@ -913,7 +908,6 @@ let transIsListening = false;
 function openTranslator(){
     document.getElementById("translator-modal").classList.remove("hidden");
     document.getElementById("trans-results").classList.remove("visible");
-    document.getElementById("trans-speak-btn").style.display="none";
     document.getElementById("trans-hint").textContent="点击麦克风开始说话";
 }
 function closeTranslator(){ stopListening(); document.getElementById("translator-modal").classList.add("hidden"); }
@@ -973,10 +967,8 @@ function startListening(){
             const sys = `你是一个翻译助手。把用户输入的${fromName}翻译成${toName}。只输出翻译结果，不要加解释。如果原文已经是${toName}，就直接输出原文。`;
             const result = await callDeepSeek(apiKey, "deepseek-v4-flash", [{role:"user",content:text}], sys);
             document.getElementById("trans-trans").textContent = result.trim();
-            document.getElementById("trans-speak-btn").style.display="";
         }catch(e){
             document.getElementById("trans-trans").textContent = "翻译失败："+e.message;
-            document.getElementById("trans-speak-btn").style.display="none";
         }
     };
 
@@ -999,14 +991,6 @@ function stopListening(){
     if(transRecognition){ try{ transRecognition.stop(); }catch(e){} }
 }
 
-function speakTrans(){
-    const text = document.getElementById("trans-trans").textContent;
-    if(!text || text==="翻译中...") return;
-    const lang = document.getElementById("trans-to").value;
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = lang; u.rate = 0.9;
-    speechSynthesis.speak(u);
-}
 
 // ============ DINO GAME ============
 let dinoCtx, dinoAnimId, dinoState;
@@ -1228,7 +1212,7 @@ async function sendMessage(content){
     let weatherData = null;
     if(WEATHER_KW.test(displayText)) weatherData = await checkWeather(displayText);
 
-    const msgObj = {role:"user",content:displayText};
+    const msgObj = {role:"user",content:displayText,time:Date.now()};
     if(currentPhoto){ msgObj.image = currentPhoto.base64; msgObj.content = text || "请描述这张图片"; }
     if(weatherData) msgObj.weather = weatherData;
     conv.messages.push(msgObj);
@@ -1254,12 +1238,12 @@ async function sendMessage(content){
         const chatMsgs = conv.messages.map(m=>({role:m.role,content:m.content,image:m.image||null}));
         const reply = await callDeepSeek(apiKey, useModel, chatMsgs, sys);
         removeTyping();
-        conv.messages.push({role:"assistant",content:reply});
+        conv.messages.push({role:"assistant",content:reply,time:Date.now()});
         extractAndSaveMemory(displayText, reply);
         saveConvs(); renderChat(); renderSidebar();
     }catch(err){
         removeTyping();
-        conv.messages.push({role:"assistant",content:"😅 出错了："+err.message});
+        conv.messages.push({role:"assistant",content:"😅 出错了："+err.message,time:Date.now()});
         saveConvs(); renderChat();
     }
     isLoading=false;
@@ -1295,65 +1279,6 @@ function cancelPhoto(){
     photoData = null;
     document.getElementById("cam-btn").textContent = "📷";
     document.getElementById("msg-input").placeholder = "和杰少说点什么...";
-}
-const HAS_TTS = typeof SpeechSynthesisUtterance !== "undefined" && typeof speechSynthesis !== "undefined";
-let _ttsUtterance = null;
-
-function speakViaAudio(text, isEN){
-    showToast("语音朗读需要Chrome或Edge浏览器，你可在Windows开始菜单找到Edge");
-}
-
-function getVoice(){
-    if(!selectedVoice || !HAS_TTS) return null;
-    try{
-        const voices = speechSynthesis.getVoices();
-        let v = voices.find(x=>x.name===selectedVoice);
-        if(!v) v = voices.find(x=>x.name.includes(selectedVoice)||selectedVoice.includes(x.name));
-        return v || null;
-    }catch(e){return null;}
-}
-function populateVoices(){ /* no-op: voices are hardcoded in HTML */ }
-function doSpeak(text, isEN){
-    if(!HAS_TTS){ speakViaAudio(text, isEN); return; }
-    return new Promise((resolve, reject) => {
-        const u = new SpeechSynthesisUtterance(text);
-        _ttsUtterance = u;
-        u.lang = isEN ? "en-US" : "zh-CN";
-        u.rate = 0.9;
-        u.volume = 1;
-        const v = getVoice(); if(v) u.voice = v;
-        u.onend = () => { _ttsUtterance = null; resolve(); };
-        u.onerror = (e) => { _ttsUtterance = null; reject(e.error||"语音不可用"); };
-        if(speechSynthesis.speaking || speechSynthesis.pending){
-            speechSynthesis.cancel();
-            setTimeout(() => { _ttsUtterance = u; speechSynthesis.speak(u); }, 100);
-        } else {
-            speechSynthesis.speak(u);
-        }
-    });
-}
-function previewVoice(){
-    if(!HAS_TTS){
-        speakViaAudio("你好，我是杰少，这是试听。", false);
-        return;
-    }
-    const u = new SpeechSynthesisUtterance("你好我是杰少这是试听");
-    u.lang = "zh-CN"; u.rate = 0.9; u.volume = 1;
-    u.onerror = function(e){ showToast("语音错误: "+(e.error||"unknown")); };
-    u.onstart = function(){ showToast("正在播放试听..."); };
-    speechSynthesis.speak(u);
-}
-function speakText(btn){
-    const text = btn.getAttribute("data-text");
-    if(!text) return;
-    const isEN = /[a-zA-Z]{3,}/.test(text);
-    doSpeak(text, isEN);
-}
-function readAloud(){
-    const text = document.getElementById("msg-input").value.trim();
-    if(!text){ showToast("请先输入要朗读的文字"); return; }
-    const isEN = /[a-zA-Z]{3,}/.test(text);
-    doSpeak(text, isEN);
 }
 function autoResize(el){ el.style.height="auto"; el.style.height=Math.min(el.scrollHeight,110)+"px"; }
 function saveChat(){ saveConvs(); }
@@ -1494,7 +1419,6 @@ function openSettings(){
     document.getElementById("smart-switch-select").value=smartSwitch?"on":"off";
     document.getElementById("provider-select").value=model;
     document.getElementById("system-prompt-input").value=systemPrompt;
-    document.getElementById("voice-select").value=selectedVoice;
     renderThemeGrid();
     document.getElementById("settings-modal").classList.remove("hidden");
 }
@@ -1504,12 +1428,10 @@ function saveSettings(){
     model=document.getElementById("provider-select").value;
     systemPrompt=document.getElementById("system-prompt-input").value.trim();
     smartSwitch=document.getElementById("smart-switch-select").value==="on";
-    selectedVoice=document.getElementById("voice-select").value;
     localStorage.setItem("ld_api_key",apiKey);
     localStorage.setItem("ld_model",model);
     localStorage.setItem("ld_system",systemPrompt);
     localStorage.setItem("ld_smart",smartSwitch?"on":"off");
-    localStorage.setItem("ld_voice",selectedVoice);
     updateBadge(); closeSettings(); showToast("设置已保存 ✓");
 }
 
