@@ -704,6 +704,10 @@ function init(){
         document.getElementById("game-label").textContent = `游戏中：${names[activeGame]}`;
     }
 
+    // Preload speech voices (load asynchronously)
+    speechSynthesis.getVoices();
+    speechSynthesis.onvoiceschanged = () => { if(document.getElementById("voice-select")) populateVoices(); };
+
     document.getElementById("api-key-input").value = apiKey;
     document.getElementById("personality-select").value = currentPersonality;
     document.getElementById("smart-switch-select").value = smartSwitch?"on":"off";
