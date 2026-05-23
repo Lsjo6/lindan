@@ -418,6 +418,8 @@
                 <option value="on">开启（遇到数学/代码自动切V4 Pro）</option>
                 <option value="off">关闭（始终用手动选择的模型）</option>
             </select>
+            <label>朗读音色</label>
+            <select id="voice-select"></select>
             <label>主题配色</label>
             <div class="theme-grid" id="theme-grid"></div>
             <div class="btn-row">
@@ -503,6 +505,7 @@ let currentPersonality = "default", smartSwitch = true, isLoading = false;
 let journal = [], expenses = [], todos = [], memories = [];
 let activeGame = null; // null | 'guess' | 'idiom' | 'riddle'
 let photoData = null; // { base64, mime } for pending photo
+let selectedVoice = "";
 
 // ============ CONVERSATIONS ============
 function loadConvs(){
@@ -689,6 +692,7 @@ function init(){
     systemPrompt = localStorage.getItem("ld_system")||"";
     currentPersonality = localStorage.getItem("ld_personality")||"default";
     smartSwitch = localStorage.getItem("ld_smart")!=="off";
+    selectedVoice = localStorage.getItem("ld_voice")||"";
     try{ journal = JSON.parse(localStorage.getItem("ld_journal")||"[]"); }catch(e){}
     try{ expenses = JSON.parse(localStorage.getItem("ld_expenses")||"[]"); }catch(e){}
     try{ todos = JSON.parse(localStorage.getItem("ld_todos")||"[]"); }catch(e){}
@@ -1280,6 +1284,11 @@ function cancelPhoto(){
     document.getElementById("cam-btn").textContent = "📷";
     document.getElementById("msg-input").placeholder = "和杰少说点什么...";
 }
+function getVoice(){
+    if(!selectedVoice) return null;
+    const voices = speechSynthesis.getVoices();
+    return voices.find(v => v.name === selectedVoice) || null;
+}
 function speakText(btn){
     speechSynthesis.cancel();
     const text = btn.getAttribute("data-text");
@@ -1287,6 +1296,7 @@ function speakText(btn){
     const u = new SpeechSynthesisUtterance(text);
     u.lang = /[a-zA-Z]{3,}/.test(text) ? "en-US" : "zh-CN";
     u.rate = 0.9;
+    const v = getVoice(); if(v) u.voice = v;
     speechSynthesis.speak(u);
 }
 function readAloud(){
@@ -1296,7 +1306,22 @@ function readAloud(){
     const u = new SpeechSynthesisUtterance(text);
     u.lang = /[a-zA-Z]{3,}/.test(text) ? "en-US" : "zh-CN";
     u.rate = 0.9;
+    const v = getVoice(); if(v) u.voice = v;
     speechSynthesis.speak(u);
+}
+function populateVoices(){
+    const sel = document.getElementById("voice-select");
+    sel.innerHTML = '<option value="">默认音色</option>';
+    const voices = speechSynthesis.getVoices();
+    voices.forEach(v => {
+        const opt = document.createElement("option");
+        opt.value = v.name;
+        opt.textContent = `${v.name} (${v.lang})`;
+        if(v.name === selectedVoice) opt.selected = true;
+        sel.appendChild(opt);
+    });
+    // Voices load async, retry
+    if(voices.length === 0) setTimeout(populateVoices, 500);
 }
 function autoResize(el){ el.style.height="auto"; el.style.height=Math.min(el.scrollHeight,110)+"px"; }
 function saveChat(){ saveConvs(); }
@@ -1438,6 +1463,7 @@ function openSettings(){
     document.getElementById("smart-switch-select").value=smartSwitch?"on":"off";
     document.getElementById("provider-select").value=model;
     document.getElementById("system-prompt-input").value=systemPrompt;
+    populateVoices();
     renderThemeGrid();
     document.getElementById("settings-modal").classList.remove("hidden");
 }
@@ -1447,10 +1473,12 @@ function saveSettings(){
     model=document.getElementById("provider-select").value;
     systemPrompt=document.getElementById("system-prompt-input").value.trim();
     smartSwitch=document.getElementById("smart-switch-select").value==="on";
+    selectedVoice=document.getElementById("voice-select").value;
     localStorage.setItem("ld_api_key",apiKey);
     localStorage.setItem("ld_model",model);
     localStorage.setItem("ld_system",systemPrompt);
     localStorage.setItem("ld_smart",smartSwitch?"on":"off");
+    localStorage.setItem("ld_voice",selectedVoice);
     updateBadge(); closeSettings(); showToast("设置已保存 ✓");
 }
 
