@@ -664,7 +664,7 @@ function renderChat(){
             const d=document.createElement("div"); d.className="message "+m.role;
             let content = m.content;
             if(m.weather) content = renderWeatherCard(m.weather) + content;
-            d.innerHTML=`<div class="msg-avatar">${m.role==="user"?"😊":PERSONALITIES[currentPersonality].icon}</div><div class="msg-bubble">${fmt(content)}</div>`;
+            d.innerHTML=`<div class="msg-avatar">${m.role==="user"?"❓":"✅"}</div><div class="msg-bubble">${fmt(content)}</div>`;
             c.appendChild(d);
         });
     }
@@ -683,7 +683,7 @@ function fmt(t){
 function showTyping(){
     const c=document.getElementById("chat-container");
     const d=document.createElement("div"); d.className="message assistant"; d.id="typing-indicator";
-    d.innerHTML=`<div class="msg-avatar">${PERSONALITIES[currentPersonality].icon}</div><div class="msg-bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div>`;
+    d.innerHTML=`<div class="msg-avatar">✅</div><div class="msg-bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div>`;
     c.appendChild(d); c.scrollTop=c.scrollHeight;
 }
 function removeTyping(){ const e=document.getElementById("typing-indicator"); if(e) e.remove(); }
