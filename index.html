@@ -160,6 +160,9 @@
         #gomoku-restart{padding:8px 16px;border-radius:4px;border:2px solid var(--accent);background:var(--surface2);color:var(--text);font-size:14px;cursor:pointer;margin-top:10px;font-family:inherit;box-shadow:2px 2px 0 0 rgba(0,0,0,.15)}
         #gomoku-restart:active{background:var(--accent);box-shadow:none;transform:translate(2px,2px)}
         #gomoku-restart.hidden{display:none}
+        #gomoku-diff{display:flex;gap:6px;margin-bottom:8px}
+        #gomoku-diff button{padding:4px 10px;border-radius:4px;border:2px solid var(--border);background:var(--surface2);color:var(--text2);font-size:12px;cursor:pointer;font-family:inherit}
+        #gomoku-diff button.active{border-color:var(--accent);color:var(--accent);font-weight:700}
 
         /* Fortune */
         .fortune-card{background:linear-gradient(135deg,#1a1030,#2d1050);border-radius:4px;padding:16px;text-align:center;border:2px solid #6030a0;margin:4px 0;box-shadow:3px 3px 0 0 rgba(0,0,0,.2)}
@@ -502,6 +505,11 @@
     <div class="hidden" id="gomoku-overlay">
         <button id="gomoku-close" onclick="stopGomokuGame()">✕</button>
         <div id="gomoku-status">⚫ 你的回合</div>
+        <div id="gomoku-diff">
+            <button data-lvl="1" onclick="setGomokuDifficulty(1)">😊 简单</button>
+            <button data-lvl="2" onclick="setGomokuDifficulty(2)">🤔 中等</button>
+            <button data-lvl="3" class="active" onclick="setGomokuDifficulty(3)">🧠 困难</button>
+        </div>
         <canvas id="gomoku-canvas" width="424" height="424"></canvas>
         <div id="gomoku-info">
             <span>🏆 最高连胜：<span id="gomoku-best">0</span></span>
@@ -1332,6 +1340,7 @@ const GOMOKU_CANVAS_H = 424;
 let gomokuBoard, gomokuCurrentPlayer, gomokuGameOver, gomokuGameResult;
 let gomokuLastMove, gomokuHoverCell, gomokuAiThinking, gomokuCtx;
 let gomokuPlayerWins, gomokuAiWins, gomokuBestStreak, gomokuCurrentStreak;
+let gomokuDifficulty = parseInt(localStorage.getItem("ld_gomoku_diff") || "3");
 let gomokuHistory = [];
 
 function loadGomokuStats(){
@@ -1341,6 +1350,15 @@ function loadGomokuStats(){
     gomokuCurrentStreak = 0;
 }
 loadGomokuStats();
+
+function setGomokuDifficulty(lvl){
+    gomokuDifficulty = lvl;
+    localStorage.setItem("ld_gomoku_diff", lvl);
+    document.querySelectorAll("#gomoku-diff button").forEach(b => b.classList.toggle("active", parseInt(b.dataset.lvl) === lvl));
+    if(!gomokuGameOver && gomokuHistory.length === 0){
+        document.getElementById("gomoku-status").textContent = "⚫ 你的回合";
+    }
+}
 
 function startGomokuGame(){
     const overlay = document.getElementById("gomoku-overlay");
@@ -1360,6 +1378,7 @@ function startGomokuGame(){
     document.getElementById("gomoku-best").textContent = gomokuBestStreak;
     document.getElementById("gomoku-player-wins").textContent = gomokuPlayerWins;
     document.getElementById("gomoku-ai-wins").textContent = gomokuAiWins;
+    document.querySelectorAll("#gomoku-diff button").forEach(b => b.classList.toggle("active", parseInt(b.dataset.lvl) === gomokuDifficulty));
 
     canvas.addEventListener("click", gomokuClick);
     canvas.addEventListener("mousemove", gomokuMouseMove);
@@ -1676,27 +1695,57 @@ function findGomokuBestMove(){
             if(gomokuBoard[r][c]!==0) hasStone = true;
     if(!hasStone) return {row:7, col:7};
 
+    const diff = gomokuDifficulty; // 1=easy 2=medium 3=hard
+    const nRadius = diff === 3 ? 3 : (diff === 2 ? 2 : 1);
+    const randomNoise = diff === 1 ? 30 : (diff === 2 ? 8 : 3);
+
     let bestScore = -Infinity, bestMoves = [];
     for(let r=0; r<GOMOKU_SIZE; r++){
         for(let c=0; c<GOMOKU_SIZE; c++){
             if(gomokuBoard[r][c]!==0) continue;
-            if(!hasNeighbor(r, c)) continue;
+            if(!hasNeighbor(r, c, nRadius)) continue;
 
             const attack = evalCell(gomokuBoard, r, c, 2);
             const defense = evalCell(gomokuBoard, r, c, 1);
-            let score = (attack >= 100000) ? 1000000 : (defense >= 100000) ? 999999 : attack + defense * 0.95 + Math.random()*8;
+
+            let score;
+            if(attack >= 100000){
+                score = 1000000;
+            } else if(defense >= 100000){
+                // Easy mode: 20% chance to miss a winning block
+                score = (diff === 1 && Math.random() < 0.2) ? 0 : 999999;
+            } else {
+                const defWeight = diff === 1 ? 0.5 : (diff === 2 ? 0.95 : 1.0);
+                score = attack + defense * defWeight + Math.random() * randomNoise;
+            }
 
             if(score > bestScore){ bestScore = score; bestMoves = [{row:r,col:c}]; }
-            else if(Math.abs(score - bestScore) < 4){ bestMoves.push({row:r,col:c}); }
+            else if(Math.abs(score - bestScore) < (diff === 1 ? 12 : 4)){ bestMoves.push({row:r,col:c}); }
         }
     }
     if(bestMoves.length === 0) return null;
+    // Easy mode: 25% chance to pick a random candidate instead of best cluster
+    if(diff === 1 && bestMoves.length > 1 && Math.random() < 0.25){
+        // Pick a move not in the top cluster
+        const secondTier = [];
+        for(let r=0; r<GOMOKU_SIZE; r++){
+            for(let c=0; c<GOMOKU_SIZE; c++){
+                if(gomokuBoard[r][c]!==0) continue;
+                if(!hasNeighbor(r, c, 1)) continue;
+                if(!bestMoves.some(m => m.row === r && m.col === c)){
+                    secondTier.push({row:r, col:c});
+                }
+            }
+        }
+        if(secondTier.length > 0) return secondTier[Math.floor(Math.random() * secondTier.length)];
+    }
     return bestMoves[Math.floor(Math.random() * bestMoves.length)];
 }
 
-function hasNeighbor(row, col){
-    for(let dr=-2; dr<=2; dr++){
-        for(let dc=-2; dc<=2; dc++){
+function hasNeighbor(row, col, radius){
+    radius = radius || 2;
+    for(let dr=-radius; dr<=radius; dr++){
+        for(let dc=-radius; dc<=radius; dc++){
             if(dr===0 && dc===0) continue;
             const r=row+dr, c=col+dc;
             if(r>=0 && r<GOMOKU_SIZE && c>=0 && c<GOMOKU_SIZE && gomokuBoard[r][c]!==0) return true;
