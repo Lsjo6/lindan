@@ -166,6 +166,14 @@
         #gomoku-taunt{color:#f59e0b;font-size:14px;font-weight:600;min-height:22px;margin-bottom:6px;text-align:center;transition:all .2s}
         #gomoku-taunt.urgent{color:#f87171;animation:taunt-shake .3s ease-in-out}
         @keyframes taunt-shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+        #gomoku-opponent{color:var(--text);font-size:15px;font-weight:600;margin-bottom:4px;text-align:center}
+        #gomoku-opponent .opp-emoji{font-size:24px;margin-right:4px;vertical-align:middle}
+        #gomoku-points{color:#fbbf24;font-size:13px;font-weight:600;margin-bottom:8px;text-align:center}
+        #gomoku-shop{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;margin-top:6px;max-width:400px}
+        #gomoku-shop button{padding:4px 8px;border-radius:4px;border:2px solid var(--border);background:var(--surface2);color:var(--text2);font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all .15s}
+        #gomoku-shop button:disabled{opacity:.35;cursor:not-allowed}
+        #gomoku-shop button.affordable{border-color:#fbbf24;color:#fbbf24}
+        #gomoku-shop button:active:not(:disabled){background:var(--accent);border-color:var(--accent);color:#fff}
         #murder-diff{display:flex;gap:6px;justify-content:center;margin-bottom:10px}
         #murder-diff button{padding:5px 14px;border-radius:4px;border:2px solid var(--border);background:var(--surface2);color:var(--text2);font-size:13px;cursor:pointer;font-family:inherit}
         #murder-diff button.active{border-color:var(--accent);color:var(--accent);font-weight:700}
@@ -490,6 +498,8 @@
     <!-- Gomoku Game Overlay -->
     <div class="hidden" id="gomoku-overlay">
         <button id="gomoku-close" onclick="stopGomokuGame()">✕</button>
+        <div id="gomoku-opponent"><span class="opp-emoji">🤖</span> 匹配中...</div>
+        <div id="gomoku-points">🪙 积分：0</div>
         <div id="gomoku-status">⚫ 你的回合</div>
         <div id="gomoku-diff">
             <button data-lvl="1" onclick="setGomokuDifficulty(1)">😊 简单</button>
@@ -501,7 +511,14 @@
         <div id="gomoku-info">
             <span>📊 本局比分</span>
             <span>⚫ <span id="gomoku-player-wins">0</span></span>
-            <span>🤖 <span id="gomoku-ai-wins">0</span></span>
+            <span id="gomoku-opp-wins-label">🤖 <span id="gomoku-ai-wins">0</span></span>
+        </div>
+        <div id="gomoku-shop">
+            <button onclick="gomokuBuyMute()" disabled>🤫 禁言 5分</button>
+            <button onclick="gomokuBuyForce()" disabled>🎯 指定落子 25分</button>
+            <button onclick="gomokuBuyRemove()" disabled>💥 移除棋子 50分</button>
+            <button onclick="gomokuBuySkip()" disabled>⏭️ 跳过回合 120分</button>
+            <button onclick="gomokuBuyWin()" disabled>👑 直接获胜 200分</button>
         </div>
         <div style="display:flex;gap:10px;margin-top:8px">
             <button id="gomoku-undo" onclick="gomokuUndo()" style="padding:8px 16px;border-radius:4px;border:2px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;cursor:pointer;font-family:inherit;box-shadow:2px 2px 0 0 rgba(0,0,0,.15)">↩ 悔棋</button>
@@ -1331,37 +1348,110 @@ let gomokuHistory = [];
 let gomokuPlayerWins = 0, gomokuAiWins = 0;
 let gomokuUrgeTimer = null, gomokuTauntTimer = null;
 
-const gomokuTaunts = {
-  playerBad: [
-    "就这？我闭着眼都比你下得好 😏", "你是在下棋还是在画圈圈？", "这步...我奶奶都下不出这么爛的",
-    "你确定你在认真下？", "哦豁，又送我一个机会", "你这水平还是玩简单难度吧",
-    "要不要我给你放点水？💧", "看得我都不忍心了...", "下一手该请外援了吧？"
-  ],
-  aiGood: [
-    "看到了吗？这才叫下棋 👌", "嘿嘿，这步够你琢磨半天了吧", "想好怎么应对了吗？没有的话我先笑一会",
-    "这一步，妙不可言 ✨", "我已经看到结局了...", "认输吧，这局你已经没了",
-    "将军！啊不对这是五子棋...但意思差不多 😎", "别挣扎了，下一局还有机会"
-  ],
-  aiBlock: [
-    "想连？门都没有 🚫", "早料到你会走这里了", "你的计划破产了～",
-    "你以为我没看到？天真！", "这招我都防得死死的"
-  ],
-  idle: [
-    "喂，还下不下了？", "你是在思考还是在睡觉？💤", "光标在棋盘上划了半天了，到底走哪？",
-    "快点快点，我等到花儿都谢了 🌸", "三分钟了哥们，动一动啊",
-    "紧张得不敢下了？😈", "手别抖，大胆下嘛～"
-  ],
-  playerWin: [
-    "哼，运气好而已！再来！😤", "行吧这把算你赢了...", "居然输了？！刚才那步我应该走另一边的..."
-  ],
-  aiWin: [
-    "嘿嘿，这就叫实力 💪", "服不服？要不要再来一局？", "连胜的感觉真好～",
-    "我还没认真呢你就倒下了 😎", "聪明蛋就是聪明蛋！"
-  ]
-};
+const gomokuOpponents = [
+  {id:"dio",name:"迪奥·布兰度",emoji:"🧛",taunts:{playerBad:["無駄無駄無駄！","你就这点水平？贫弱贫弱！","我DIO愿称你为最弱！","连替身都不需要就能赢你"],aiGood:["这就是世界的力量！","时间啊，停止吧——然后我赢了","你的命运早已注定","我DIO，战无不胜！"],aiBlock:["没用没用！","你的攻击毫无意义","想打败我？再过一百年吧"],idle:["快点，我等得不耐烦了","你是在浪费我DIO的时间","再不动我可要吸血了"],playerWin:["不可能！我DIO怎么会...","你一定用了波纹！卑鄙！","哼，下次就是世界的时间了"],aiWin:["贫弱！贫弱！贫弱！","这就是你唯一的命运——败给我DIO","世界的胜利！"]}},
+  {id:"gojo",name:"五条悟",emoji:"🤞",taunts:{playerBad:["哈哈哈哈！这步棋也太弱了吧","你该不会以为这样能赢我？","我眼睛遮着都看到了你的败着"],aiGood:["领域展开——无量空处！...开个玩笑，但差不多了","这就是最强的实力","你的每一步都在我眼里"],aiBlock:["想得美～","无下限术式可不是白给的","被我看到了哦"],idle:["喂～还活着吗？","要不要我给你带点伴手礼回来再下？","快点快点，我约了伊地知喝咖啡"],playerWin:["哎呀呀，居然输了～","有意思！再来再来！","这下虎杖他们又有新话题了"],aiWin:["毕竟我是最强的嘛 ✌️","你的挣扎挺有趣的","下次带京都校的一起来吧"]}},
+  {id:"kaneki",name:"金木研",emoji:"🐛",taunts:{playerBad:["...这步不太好呢","你会受伤的","不要再勉强了"],aiGood:["对不起...但这就是我的实力","我已经不会输了","不会再放手了"],aiBlock:["不行","我不会让你得逞的","...对不起"],idle:["...你在思考吗？","我等你","...（轻轻敲了敲手指）"],playerWin:["没关系...输赢不重要","你变强了呢","恭喜你"],aiWin:["这次...是我赢了","抱歉，但这是必要的","人类有时候就是会输的...没关系"]}},
+  {id:"yagami",name:"夜神月",emoji:"📓",taunts:{playerBad:["这种水平...真让我失望","你的每一步我都看穿了","就这？"],aiGood:["计划通り","我早就在笔记上写好了结局","一切都是必然"],aiBlock:["你以为我会让你？","天真！","这一步也在我的计算之内"],idle:["快一点","时间就是生命啊","...无聊"],playerWin:["这不可能！我的计划...","笔记...失效了？","新世界的秩序还没建立...我怎么会输"],aiWin:["我就是新世界的神！","垃圾！","死因：五子棋太烂"]}},
+  {id:"belial",name:"贝利亚",emoji:"👾",taunts:{playerBad:["废物！垃圾！","你就这点本事也敢挑战我？","连光之国的杂鱼都比你强！"],aiGood:["哈哈哈哈！见识一下黑暗的力量！","就这？老子还没出力呢！","弱！太弱了！"],aiBlock:["做梦！","你以为你能突破我的防线？","黑暗屏障！"],idle:["快点！我快无聊死了！","你再不动我就毁灭这颗星球！","老子等得不耐烦了！"],playerWin:["不！不可能！我贝利亚怎么会输给区区人类！","肯定是赛罗在帮你！","哼！下次就是超银河帝国的复仇！"],aiWin:["弱爆了！","就这？就这？就这？","光之国都比你难打！"]}},
+  {id:"piggy",name:"猪猪侠",emoji:"🐷",taunts:{playerBad:["哎呀，这步不太行哦～","你要加油鸭！","猪猪侠来帮你想想办法！"],aiGood:["超级棒棒糖的力量！","嘿嘿，猪猪侠可是很厉害的！","看到了吗？这就是正义的力量！"],aiBlock:["休想得逞！","猪猪侠要保护大家！","挡住挡住挡住！"],idle:["快走快走～","在想什么呢？需要猪猪侠帮忙吗？","零食都快吃完啦！"],playerWin:["打败了猪猪侠！好吧好吧你厉害～","呜呜呜棒棒糖给你，别哭了","下次猪猪侠会赢回来的！"],aiWin:["耶！正义必胜！","猪猪侠是最棒的！","棒棒糖给你，下次加油哦！"]}},
+  {id:"nailong",name:"奶龙",emoji:"🐉",taunts:{playerBad:["嘎？这步什么鬼！","你在画地图吗哈哈哈","宝宝都看呆了"],aiGood:["咕咕咕！奶龙来咯！","嗷呜～怕不怕！","看招看招看招！"],aiBlock:["挡住！","不给过不给过！","嘿嘿嘿过不去咯"],idle:["咦？睡着了？","快点快点宝宝好无聊","咕噜噜...肚子都叫了"],playerWin:["什么？！宝宝输了？！","呜呜呜...","再来再来！宝宝不服！"],aiWin:["嗷呜！宝宝赢了！","奶龙是最强哒！","咕咕咕～这就是实力！"]}},
+  {id:"zhenhuan",name:"甄嬛",emoji:"👸",taunts:{playerBad:["这步棋...倒真是让人看不下去呢","本宫见了这么多棋局，你这步最是荒唐","妹妹，回去再练练吧"],aiGood:["本宫的棋艺，自然是极好的","这便是后宫之中的谋略","这步棋，妙哉"],aiBlock:["想得倒美","本宫岂会让你如意","这里，过不去"],idle:["快些吧，本宫还要去给皇上请安","妹妹在想什么呢？","慢慢来，本宫不急（冷笑）"],playerWin:["居然输了...本宫认栽","这倒是本宫小瞧了你","皇上的棋都没这么难下"],aiWin:["这便是本宫的本事","后宫争斗可比这复杂多了","就这还想和本宫斗？"]}},
+  {id:"egg",name:"鸡蛋",emoji:"🥚",taunts:{playerBad:["啪！（蛋液溅出来）","作为一颗蛋，我都替你着急","你是在用壳想事情吗？"],aiGood:["咕噜咕噜～（滚动的声音）","我虽然圆滚滚但我聪明着呢","看到没？蛋也有大脑！"],aiBlock:["壳很硬，你敲不破的！","滚不过去～滚不过去～","挡住啦！蛋白做的墙！"],idle:["我都要孵出小鸡了...","快点快点，我要散了","别让蛋等太久好不好"],playerWin:["碎了碎了！","行吧，你赢了这颗蛋","下次我会更硬的！"],aiWin:["蛋赢了！","没想到吧，鸡蛋也会下棋！","煎了你！啊不对是赢了你！"]}},
+  {id:"dog",name:"小狗",emoji:"🐕",taunts:{playerBad:["汪汪！（嫌弃地叫了两声）","你这步...我都懒得摇尾巴","你是不是在丢骨头而不是在下棋？"],aiGood:["汪汪汪汪！（兴奋地转圈）","嗅嗅...找到了！","看我超级狗爪的厉害！"],aiBlock:["呜～（龇牙）","嗷呜！不让过！","咬住你的棋子不放！"],idle:["呜...（趴下来等你）","汪！再不快点肉干要被我吃完了","（用爪子轻轻推了推棋盘）"],playerWin:["呜呜呜...（趴下认输）","汪！（不甘心地叫了一声）","赢归赢，肉干还是要给我的！"],aiWin:["汪汪！汪汪汪！（开心地摇尾巴）","我赢了我赢了！转圈圈！","肉干！肉干！肉干！"]}},
+  {id:"thanos",name:"灭霸",emoji:"👿",taunts:{playerBad:["弱小的生物","这是...必然的失败","你不值得我打响指"],aiGood:["这就是命运","我是不可阻挡的","打完响指后，世界会更美好——包括这盘棋"],aiBlock:["你的进攻，微不足道","我只要用两颗宝石就够阻挡你了","平衡——意味着你的每一步都被我限制"],idle:["你在拖延什么？","时间宝石告诉我你还要想很久","快点下，我还要去收集剩下的宝石"],playerWin:["不！这不可能！","无限手套...失效了？","我低估了人类"],aiWin:["我就是天命","平衡已经到来","你应该感到荣幸——输给了灭霸"]}},
+  {id:"yoda",name:"尤达大师",emoji:"🧘",taunts:{playerBad:["糟糕啊，这步棋...","学会了你还没，年轻人","原力不在你心中，这盘棋证明了"],aiGood:["看到了胜利，我在原力的预视中","大小不重要，位置才重要——棋子也是，人也是","原力指引着我的每一子"],aiBlock:["挡住你，我会","过不去，这里","哈哈哈，尝试得好，但不够好"],idle:["快点下吧，等不及了我在","耐心，原力的基础是...但你也不能让人等到下一部","闭眼三分钟了，你在吗，嗯？"],playerWin:["败了！惊讶，我","强大的原力在你身上","再来一局，我需要。练习，练习"],aiWin:["赢了你，我做到了，嗯——啊啊啊！","原力与你同在...但实力不在","学到东西了吗，这次失败中？"]}}
+];
+
+let gomokuOpponent = null;
+let gomokuOppMuted = false;
+let gomokuForceNext = false;
+let gomokuSkipNext = false;
+let gomokuPoints = 0;
+let gomokuWinStreak = 0;
+
+function gomokuRandomOpponent(){
+  return gomokuOpponents[Math.floor(Math.random() * gomokuOpponents.length)];
+}
+
+function gomokuMatchOpponent(){
+  gomokuOpponent = gomokuRandomOpponent();
+  gomokuOppMuted = false;
+  gomokuForceNext = false;
+  gomokuSkipNext = false;
+  document.getElementById("gomoku-opponent").innerHTML = '<span class="opp-emoji">' + gomokuOpponent.emoji + '</span>' + gomokuOpponent.name;
+  document.getElementById("gomoku-opp-wins-label").innerHTML = gomokuOpponent.emoji + ' <span id="gomoku-ai-wins">' + gomokuAiWins + '</span>';
+  gomokuUpdateShop();
+}
+
+function gomokuUpdatePoints(delta){
+  gomokuPoints += delta;
+  document.getElementById("gomoku-points").textContent = '🪙 积分：' + gomokuPoints;
+  gomokuUpdateShop();
+}
+
+function gomokuUpdateShop(){
+  var btns = document.querySelectorAll("#gomoku-shop button");
+  var costs = [5, 25, 50, 120, 200];
+  for(var i = 0; i < btns.length; i++){
+    btns[i].disabled = gomokuPoints < costs[i] || gomokuGameOver || gomokuAiThinking;
+    btns[i].classList.toggle("affordable", gomokuPoints >= costs[i] && !gomokuGameOver && !gomokuAiThinking);
+  }
+}
+
+function gomokuBuyMute(){
+  if(gomokuPoints < 5 || gomokuGameOver || gomokuAiThinking) return;
+  gomokuPoints -= 5;
+  gomokuOppMuted = true;
+  gomokuShowTaunt("🔇 " + gomokuOpponent.name + " 已被禁言30秒！");
+  setTimeout(() => { gomokuOppMuted = false; gomokuShowTaunt(""); }, 30000);
+  gomokuUpdatePoints(0);
+}
+
+function gomokuBuyForce(){
+  if(gomokuPoints < 25 || gomokuGameOver || gomokuAiThinking) return;
+  gomokuPoints -= 25;
+  gomokuForceNext = true;
+  gomokuShowTaunt("🎯 点击棋盘指定 " + gomokuOpponent.name + " 的落子位置！");
+  gomokuUpdatePoints(0);
+}
+
+function gomokuBuyRemove(){
+  if(gomokuPoints < 50 || gomokuGameOver || gomokuAiThinking) return;
+  gomokuPoints -= 50;
+  gomokuShowTaunt("💥 点击 " + gomokuOpponent.name + " 的一颗棋子将其移除！");
+  gomokuUpdatePoints(0);
+  window._gomokuRemoveMode = true;
+}
+
+function gomokuBuySkip(){
+  if(gomokuPoints < 120 || gomokuGameOver || gomokuAiThinking) return;
+  gomokuPoints -= 120;
+  gomokuSkipNext = true;
+  gomokuShowTaunt("⏭️ " + gomokuOpponent.name + " 下回合将被跳过！");
+  gomokuUpdatePoints(0);
+}
+
+function gomokuBuyWin(){
+  if(gomokuPoints < 200 || gomokuGameOver || gomokuAiThinking) return;
+  gomokuPoints -= 200;
+  gomokuGameOver = true; gomokuGameResult = "player";
+  gomokuPlayerWins++; gomokuWinStreak++;
+  var bonus = 10 + Math.min((gomokuWinStreak - 1) * 10, 50);
+  gomokuUpdatePoints(bonus);
+  gomokuShowTaunt("👑 " + gomokuOpponent.name + " 被你碾压了！+" + bonus + "分");
+  document.getElementById("gomoku-status").textContent = "👑 你碾压了" + gomokuOpponent.name + "！+" + bonus + "分";
+  document.getElementById("gomoku-restart").classList.remove("hidden");
+  document.getElementById("gomoku-player-wins").textContent = gomokuPlayerWins;
+  gomokuClearUrgeTimer();
+  drawGomokuBoard();
+  gomokuUpdateShop();
+}
 
 function gomokuRandomTaunt(category){
-  const list = gomokuTaunts[category];
+  if(!gomokuOpponent || gomokuOppMuted) return "";
+  var list = gomokuOpponent.taunts[category];
+  if(!list) return "";
   return list[Math.floor(Math.random() * list.length)];
 }
 
@@ -1415,6 +1505,7 @@ function startGomokuGame(){
     gomokuPlayerWins = 0; gomokuAiWins = 0;
     gomokuClearUrgeTimer();
     gomokuShowTaunt('');
+    gomokuMatchOpponent();
 
     document.getElementById("gomoku-status").textContent = "⚫ 你的回合";
     document.getElementById("gomoku-restart").classList.add("hidden");
@@ -1453,11 +1544,14 @@ function restartGomokuGame(){
     gomokuHistory = [];
     gomokuClearUrgeTimer();
     gomokuShowTaunt('');
+    gomokuMatchOpponent();
     gomokuStartUrgeTimer();
     document.getElementById("gomoku-status").textContent = "⚫ 你的回合";
     document.getElementById("gomoku-restart").classList.add("hidden");
     document.getElementById("gomoku-player-wins").textContent = gomokuPlayerWins;
     document.getElementById("gomoku-ai-wins").textContent = gomokuAiWins;
+    document.getElementById("gomoku-opp-wins-label").innerHTML = gomokuOpponent.emoji + ' <span id="gomoku-ai-wins">' + gomokuAiWins + '</span>';
+    document.getElementById("gomoku-opp-wins-label").innerHTML = gomokuOpponent.emoji + ' <span id="gomoku-ai-wins">' + gomokuAiWins + '</span>';
     drawGomokuBoard();
 }
 
@@ -1485,10 +1579,48 @@ function gomokuClick(e){
     gomokuLastPlaceTime = now;
 
     if(gomokuGameOver){ restartGomokuGame(); return; }
-    if(gomokuAiThinking || gomokuCurrentPlayer !== 1) return;
 
     const cell = getGomokuCell(e);
-    if(!cell || gomokuBoard[cell.row][cell.col] !== 0) return;
+    if(!cell) return;
+
+    if(window._gomokuRemoveMode){
+      if(gomokuBoard[cell.row][cell.col] === 2){
+        gomokuBoard[cell.row][cell.col] = 0;
+        window._gomokuRemoveMode = false;
+        gomokuShowTaunt("💥 移除了" + gomokuOpponent.name + "的棋子！");
+        drawGomokuBoard();
+        return;
+      }
+      window._gomokuRemoveMode = false;
+      gomokuShowTaunt("");
+      drawGomokuBoard();
+      return;
+    }
+
+    if(gomokuForceNext){
+      if(gomokuBoard[cell.row][cell.col] !== 0) return;
+      gomokuBoard[cell.row][cell.col] = 2;
+      gomokuLastMove = {row: cell.row, col: cell.col};
+      gomokuHistory.push({row: cell.row, col: cell.col, player: 2});
+      gomokuForceNext = false;
+      gomokuShowTaunt("🎯 " + gomokuOpponent.name + " 被迫落子在指定位置！");
+      if(checkGomokuWin(cell.row, cell.col, 2)){
+        gomokuGameOver = true; gomokuGameResult = "ai";
+        gomokuAiWins++; gomokuWinStreak = 0;
+        document.getElementById("gomoku-status").textContent = "😔 搬起石头砸了自己的脚...";
+        document.getElementById("gomoku-restart").classList.remove("hidden");
+        document.getElementById("gomoku-ai-wins").textContent = gomokuAiWins;
+        drawGomokuBoard(); return;
+      }
+      gomokuCurrentPlayer = 1;
+      document.getElementById("gomoku-status").textContent = "⚫ 你的回合";
+      gomokuStartUrgeTimer();
+      drawGomokuBoard();
+      return;
+    }
+
+    if(gomokuAiThinking || gomokuCurrentPlayer !== 1) return;
+    if(gomokuBoard[cell.row][cell.col] !== 0) return;
 
     gomokuBoard[cell.row][cell.col] = 1;
     gomokuLastMove = {row: cell.row, col: cell.col};
@@ -1499,15 +1631,19 @@ function gomokuClick(e){
     gomokuShowTaunt(''); // Clear any idle taunt when player moves
     if(checkGomokuWin(cell.row, cell.col, 1)){
         gomokuGameOver = true; gomokuGameResult = 'player';
-        gomokuPlayerWins++; gomokuCurrentStreak++;
+        gomokuPlayerWins++;
+        gomokuWinStreak++;
+        var bonus = 10 + Math.min((gomokuWinStreak - 1) * 10, 50);
+        gomokuUpdatePoints(bonus);
         gomokuShowTaunt(gomokuRandomTaunt('playerWin'));
-        document.getElementById("gomoku-status").textContent = "🎉 你赢了！";
+        document.getElementById("gomoku-status").textContent = "🎉 你赢了" + gomokuOpponent.name + "！+" + bonus + "分";
         document.getElementById("gomoku-restart").classList.remove("hidden");
         document.getElementById("gomoku-player-wins").textContent = gomokuPlayerWins;
+        setTimeout(() => { gomokuMatchOpponent(); gomokuShowTaunt(''); gomokuUpdatePoints(0); }, 1500);
         drawGomokuBoard(); return;
     }
     if(isGomokuBoardFull()){
-        gomokuGameOver = true; gomokuGameResult = 'draw'; gomokuCurrentStreak = 0;
+        gomokuGameOver = true; gomokuGameResult = 'draw'; gomokuWinStreak = 0;
         document.getElementById("gomoku-status").textContent = "🤝 平局！";
         document.getElementById("gomoku-restart").classList.remove("hidden");
         drawGomokuBoard(); return;
@@ -1675,6 +1811,15 @@ function isGomokuBoardFull(){
 }
 
 function gomokuAiMove(){
+    if(gomokuSkipNext){
+      gomokuSkipNext = false;
+      gomokuCurrentPlayer = 1;
+      gomokuShowTaunt("⏭️ " + gomokuOpponent.name + " 这回合被跳过了！");
+      document.getElementById("gomoku-status").textContent = "⚫ 你的回合";
+      gomokuStartUrgeTimer();
+      drawGomokuBoard();
+      return;
+    }
     const move = findGomokuBestMove();
     if(!move){ drawGomokuBoard(); return; }
 
@@ -1684,15 +1829,18 @@ function gomokuAiMove(){
 
     if(checkGomokuWin(move.row, move.col, 2)){
         gomokuGameOver = true; gomokuGameResult = 'ai';
-        gomokuAiWins++; gomokuCurrentStreak = 0;
+        gomokuAiWins++;
+        gomokuWinStreak = 0;
         gomokuShowTaunt(gomokuRandomTaunt('aiWin'));
-        document.getElementById("gomoku-status").textContent = "😔 聪明蛋赢了！";
+        document.getElementById("gomoku-status").textContent = "😔 " + gomokuOpponent.name + " 赢了！";
         document.getElementById("gomoku-restart").classList.remove("hidden");
         document.getElementById("gomoku-ai-wins").textContent = gomokuAiWins;
+        document.getElementById("gomoku-opp-wins-label").innerHTML = gomokuOpponent.emoji + ' <span id="gomoku-ai-wins">' + gomokuAiWins + '</span>';
+        setTimeout(() => { gomokuMatchOpponent(); gomokuShowTaunt(''); gomokuUpdatePoints(0); }, 2000);
         drawGomokuBoard(); return;
     }
     if(isGomokuBoardFull()){
-        gomokuGameOver = true; gomokuGameResult = 'draw'; gomokuCurrentStreak = 0;
+        gomokuGameOver = true; gomokuGameResult = 'draw'; gomokuWinStreak = 0;
         gomokuShowTaunt('居然平了...算你捡到了 🙄');
         document.getElementById("gomoku-status").textContent = "🤝 平局！";
         document.getElementById("gomoku-restart").classList.remove("hidden");
@@ -1709,6 +1857,7 @@ function gomokuAiMove(){
     gomokuCurrentPlayer = 1;
     document.getElementById("gomoku-status").textContent = "⚫ 你的回合";
     gomokuStartUrgeTimer();
+    gomokuUpdateShop();
     drawGomokuBoard();
 }
 
@@ -1730,10 +1879,11 @@ function gomokuUndo(){
 function gomokuResign(){
     if(gomokuGameOver || gomokuAiThinking) return;
     gomokuGameOver = true; gomokuGameResult = 'ai';
-    gomokuAiWins++; gomokuCurrentStreak = 0;
+    gomokuAiWins++;
     gomokuClearUrgeTimer();
-    gomokuShowTaunt('这就认输了？我还没玩够呢 😏');
-    document.getElementById("gomoku-status").textContent = "🏳️ 你认输了";
+    gomokuWinStreak = 0;
+    gomokuShowTaunt(gomokuOpponent ? ('这就认输了？' + gomokuOpponent.name + '还没玩够呢 😏') : '这就认输了？');
+    document.getElementById("gomoku-status").textContent = "🏳️ 你向" + (gomokuOpponent ? gomokuOpponent.name : "对手") + "认输了";
     document.getElementById("gomoku-restart").classList.remove("hidden");
     document.getElementById("gomoku-ai-wins").textContent = gomokuAiWins;
     drawGomokuBoard();
