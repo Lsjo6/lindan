@@ -163,6 +163,9 @@
         #gomoku-diff{display:flex;gap:6px;margin-bottom:8px}
         #gomoku-diff button{padding:4px 10px;border-radius:4px;border:2px solid var(--border);background:var(--surface2);color:var(--text2);font-size:12px;cursor:pointer;font-family:inherit}
         #gomoku-diff button.active{border-color:var(--accent);color:var(--accent);font-weight:700}
+        #gomoku-taunt{color:#f59e0b;font-size:14px;font-weight:600;min-height:22px;margin-bottom:6px;text-align:center;transition:all .2s}
+        #gomoku-taunt.urgent{color:#f87171;animation:taunt-shake .3s ease-in-out}
+        @keyframes taunt-shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
         #murder-diff{display:flex;gap:6px;justify-content:center;margin-bottom:10px}
         #murder-diff button{padding:5px 14px;border-radius:4px;border:2px solid var(--border);background:var(--surface2);color:var(--text2);font-size:13px;cursor:pointer;font-family:inherit}
         #murder-diff button.active{border-color:var(--accent);color:var(--accent);font-weight:700}
@@ -493,11 +496,12 @@
             <button data-lvl="2" onclick="setGomokuDifficulty(2)">🤔 中等</button>
             <button data-lvl="3" class="active" onclick="setGomokuDifficulty(3)">🧠 困难</button>
         </div>
+        <div id="gomoku-taunt"></div>
         <canvas id="gomoku-canvas" width="424" height="424"></canvas>
         <div id="gomoku-info">
-            <span>🏆 最高连胜：<span id="gomoku-best">0</span></span>
-            <span>⚫ <span id="gomoku-player-wins">0</span> 胜</span>
-            <span>🤖 <span id="gomoku-ai-wins">0</span> 胜</span>
+            <span>📊 本局比分</span>
+            <span>⚫ <span id="gomoku-player-wins">0</span></span>
+            <span>🤖 <span id="gomoku-ai-wins">0</span></span>
         </div>
         <div style="display:flex;gap:10px;margin-top:8px">
             <button id="gomoku-undo" onclick="gomokuUndo()" style="padding:8px 16px;border-radius:4px;border:2px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;cursor:pointer;font-family:inherit;box-shadow:2px 2px 0 0 rgba(0,0,0,.15)">↩ 悔棋</button>
@@ -1322,17 +1326,69 @@ const GOMOKU_CANVAS_H = 424;
 
 let gomokuBoard, gomokuCurrentPlayer, gomokuGameOver, gomokuGameResult;
 let gomokuLastMove, gomokuHoverCell, gomokuAiThinking, gomokuCtx;
-let gomokuPlayerWins, gomokuAiWins, gomokuBestStreak, gomokuCurrentStreak;
 let gomokuDifficulty = parseInt(localStorage.getItem("ld_gomoku_diff") || "3");
 let gomokuHistory = [];
+let gomokuPlayerWins = 0, gomokuAiWins = 0;
+let gomokuUrgeTimer = null, gomokuTauntTimer = null;
 
-function loadGomokuStats(){
-    gomokuPlayerWins = parseInt(localStorage.getItem("ld_gomoku_player_wins") || "0");
-    gomokuAiWins = parseInt(localStorage.getItem("ld_gomoku_ai_wins") || "0");
-    gomokuBestStreak = parseInt(localStorage.getItem("ld_gomoku_best") || "0");
-    gomokuCurrentStreak = 0;
+const gomokuTaunts = {
+  playerBad: [
+    "就这？我闭着眼都比你下得好 😏", "你是在下棋还是在画圈圈？", "这步...我奶奶都下不出这么爛的",
+    "你确定你在认真下？", "哦豁，又送我一个机会", "你这水平还是玩简单难度吧",
+    "要不要我给你放点水？💧", "看得我都不忍心了...", "下一手该请外援了吧？"
+  ],
+  aiGood: [
+    "看到了吗？这才叫下棋 👌", "嘿嘿，这步够你琢磨半天了吧", "想好怎么应对了吗？没有的话我先笑一会",
+    "这一步，妙不可言 ✨", "我已经看到结局了...", "认输吧，这局你已经没了",
+    "将军！啊不对这是五子棋...但意思差不多 😎", "别挣扎了，下一局还有机会"
+  ],
+  aiBlock: [
+    "想连？门都没有 🚫", "早料到你会走这里了", "你的计划破产了～",
+    "你以为我没看到？天真！", "这招我都防得死死的"
+  ],
+  idle: [
+    "喂，还下不下了？", "你是在思考还是在睡觉？💤", "光标在棋盘上划了半天了，到底走哪？",
+    "快点快点，我等到花儿都谢了 🌸", "三分钟了哥们，动一动啊",
+    "紧张得不敢下了？😈", "手别抖，大胆下嘛～"
+  ],
+  playerWin: [
+    "哼，运气好而已！再来！😤", "行吧这把算你赢了...", "居然输了？！刚才那步我应该走另一边的..."
+  ],
+  aiWin: [
+    "嘿嘿，这就叫实力 💪", "服不服？要不要再来一局？", "连胜的感觉真好～",
+    "我还没认真呢你就倒下了 😎", "聪明蛋就是聪明蛋！"
+  ]
+};
+
+function gomokuRandomTaunt(category){
+  const list = gomokuTaunts[category];
+  return list[Math.floor(Math.random() * list.length)];
 }
-loadGomokuStats();
+
+function gomokuShowTaunt(msg, urgent){
+  const el = document.getElementById("gomoku-taunt");
+  el.textContent = msg || '';
+  el.className = urgent ? 'urgent' : '';
+  if(urgent) setTimeout(() => el.className = '', 600);
+}
+
+function gomokuStartUrgeTimer(){
+  gomokuClearUrgeTimer();
+  gomokuUrgeTimer = setTimeout(() => {
+    gomokuShowTaunt(gomokuRandomTaunt('idle'), true);
+  }, 20000); // 20 seconds before first urge
+  // Random taunts while waiting
+  gomokuTauntTimer = setTimeout(() => {
+    if(!gomokuGameOver && gomokuCurrentPlayer === 1 && !gomokuAiThinking){
+      gomokuShowTaunt(gomokuRandomTaunt('idle'), true);
+    }
+  }, 35000); // 35 seconds for a second one
+}
+
+function gomokuClearUrgeTimer(){
+  if(gomokuUrgeTimer){ clearTimeout(gomokuUrgeTimer); gomokuUrgeTimer = null; }
+  if(gomokuTauntTimer){ clearTimeout(gomokuTauntTimer); gomokuTauntTimer = null; }
+}
 
 function setGomokuDifficulty(lvl){
     gomokuDifficulty = lvl;
@@ -1355,12 +1411,16 @@ function startGomokuGame(){
     gomokuGameOver = false; gomokuGameResult = null;
     gomokuLastMove = null; gomokuHoverCell = null; gomokuAiThinking = false;
     gomokuHistory = [];
+    // Reset session scoreboard
+    gomokuPlayerWins = 0; gomokuAiWins = 0;
+    gomokuClearUrgeTimer();
+    gomokuShowTaunt('');
 
     document.getElementById("gomoku-status").textContent = "⚫ 你的回合";
     document.getElementById("gomoku-restart").classList.add("hidden");
-    document.getElementById("gomoku-best").textContent = gomokuBestStreak;
-    document.getElementById("gomoku-player-wins").textContent = gomokuPlayerWins;
-    document.getElementById("gomoku-ai-wins").textContent = gomokuAiWins;
+    document.getElementById("gomoku-player-wins").textContent = "0";
+    document.getElementById("gomoku-ai-wins").textContent = "0";
+    gomokuStartUrgeTimer();
     document.querySelectorAll("#gomoku-diff button").forEach(b => b.classList.toggle("active", parseInt(b.dataset.lvl) === gomokuDifficulty));
 
     canvas.addEventListener("click", gomokuClick);
@@ -1374,6 +1434,7 @@ function startGomokuGame(){
 }
 
 function stopGomokuGame(){
+    gomokuClearUrgeTimer();
     const canvas = document.getElementById("gomoku-canvas");
     canvas.removeEventListener("click", gomokuClick);
     canvas.removeEventListener("mousemove", gomokuMouseMove);
@@ -1390,9 +1451,11 @@ function restartGomokuGame(){
     gomokuGameOver = false; gomokuGameResult = null;
     gomokuLastMove = null; gomokuHoverCell = null; gomokuAiThinking = false;
     gomokuHistory = [];
+    gomokuClearUrgeTimer();
+    gomokuShowTaunt('');
+    gomokuStartUrgeTimer();
     document.getElementById("gomoku-status").textContent = "⚫ 你的回合";
     document.getElementById("gomoku-restart").classList.add("hidden");
-    document.getElementById("gomoku-best").textContent = gomokuBestStreak;
     document.getElementById("gomoku-player-wins").textContent = gomokuPlayerWins;
     document.getElementById("gomoku-ai-wins").textContent = gomokuAiWins;
     drawGomokuBoard();
@@ -1432,17 +1495,14 @@ function gomokuClick(e){
     gomokuHistory.push({row: cell.row, col: cell.col, player: 1});
     gomokuHoverCell = null;
 
+    gomokuClearUrgeTimer();
+    gomokuShowTaunt(''); // Clear any idle taunt when player moves
     if(checkGomokuWin(cell.row, cell.col, 1)){
         gomokuGameOver = true; gomokuGameResult = 'player';
         gomokuPlayerWins++; gomokuCurrentStreak++;
-        if(gomokuCurrentStreak > gomokuBestStreak){
-            gomokuBestStreak = gomokuCurrentStreak;
-            localStorage.setItem("ld_gomoku_best", gomokuBestStreak);
-        }
-        localStorage.setItem("ld_gomoku_player_wins", gomokuPlayerWins);
+        gomokuShowTaunt(gomokuRandomTaunt('playerWin'));
         document.getElementById("gomoku-status").textContent = "🎉 你赢了！";
         document.getElementById("gomoku-restart").classList.remove("hidden");
-        document.getElementById("gomoku-best").textContent = gomokuBestStreak;
         document.getElementById("gomoku-player-wins").textContent = gomokuPlayerWins;
         drawGomokuBoard(); return;
     }
@@ -1625,22 +1685,30 @@ function gomokuAiMove(){
     if(checkGomokuWin(move.row, move.col, 2)){
         gomokuGameOver = true; gomokuGameResult = 'ai';
         gomokuAiWins++; gomokuCurrentStreak = 0;
-        localStorage.setItem("ld_gomoku_ai_wins", gomokuAiWins);
+        gomokuShowTaunt(gomokuRandomTaunt('aiWin'));
         document.getElementById("gomoku-status").textContent = "😔 聪明蛋赢了！";
         document.getElementById("gomoku-restart").classList.remove("hidden");
         document.getElementById("gomoku-ai-wins").textContent = gomokuAiWins;
-        document.getElementById("gomoku-best").textContent = gomokuBestStreak;
         drawGomokuBoard(); return;
     }
     if(isGomokuBoardFull()){
         gomokuGameOver = true; gomokuGameResult = 'draw'; gomokuCurrentStreak = 0;
+        gomokuShowTaunt('居然平了...算你捡到了 🙄');
         document.getElementById("gomoku-status").textContent = "🤝 平局！";
         document.getElementById("gomoku-restart").classList.remove("hidden");
         drawGomokuBoard(); return;
     }
 
+    // Random taunt after AI move (50% chance)
+    if(Math.random() < 0.5){
+        // Check if AI just blocked a player threat
+        const blockTaunt = Math.random() < 0.4 ? gomokuRandomTaunt('aiBlock') : gomokuRandomTaunt('aiGood');
+        gomokuShowTaunt(blockTaunt);
+    }
+
     gomokuCurrentPlayer = 1;
     document.getElementById("gomoku-status").textContent = "⚫ 你的回合";
+    gomokuStartUrgeTimer();
     drawGomokuBoard();
 }
 
@@ -1663,11 +1731,11 @@ function gomokuResign(){
     if(gomokuGameOver || gomokuAiThinking) return;
     gomokuGameOver = true; gomokuGameResult = 'ai';
     gomokuAiWins++; gomokuCurrentStreak = 0;
-    localStorage.setItem("ld_gomoku_ai_wins", gomokuAiWins);
+    gomokuClearUrgeTimer();
+    gomokuShowTaunt('这就认输了？我还没玩够呢 😏');
     document.getElementById("gomoku-status").textContent = "🏳️ 你认输了";
     document.getElementById("gomoku-restart").classList.remove("hidden");
     document.getElementById("gomoku-ai-wins").textContent = gomokuAiWins;
-    document.getElementById("gomoku-best").textContent = gomokuBestStreak;
     drawGomokuBoard();
 }
 
