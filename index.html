@@ -2077,8 +2077,12 @@ function stopGame(){
 function getGameContext(){
     if(!activeGame) return "";
     var ctx = GAME_PROMPTS[activeGame];
-    // Inject saved game state if exists
+    // Inject saved game state if exists, or recover from chat history
     var savedState = getSavedGameState();
+    if(!savedState){
+        // Try to recover from chat history
+        savedState = recoverGameStateFromHistory();
+    }
     if(savedState){
         ctx = "🔴🔴🔴 以下是你上次保存的游戏状态——这是你必须继承的真相！🔴🔴🔴\n\n" + savedState + "\n\n🔴 你必须从这个状态继续游戏。面板里的每一个数值、每一个物品、每一个任务、每一个关系——都是真实存在的。你不能丢失、不能随意修改、不能凭空消失。如果面板数据和你「记忆」的不一致——以面板为准！面板是你唯一的真相来源。🔴\n\n" + ctx;
     }
@@ -2121,6 +2125,24 @@ function extractPanelFromResponse(response){
     if(codeStart >= 0){
         var codeEnd = response.indexOf('```', codeStart + 3);
         if(codeEnd > codeStart) return response.substring(codeStart + 3, codeEnd).trim();
+    }
+    return null;
+}
+
+function recoverGameStateFromHistory(){
+    if(!activeGame) return null;
+    var conv = getActiveConv();
+    if(!conv || !conv.messages) return null;
+    // Scan backwards through messages to find the last panel
+    for(var mi = conv.messages.length - 1; mi >= 0; mi--){
+        var msg = conv.messages[mi];
+        if(msg.role === "assistant"){
+            var panel = extractPanelFromResponse(msg.content);
+            if(panel){
+                saveGamePanel(panel);
+                return panel;
+            }
+        }
     }
     return null;
 }
@@ -2199,6 +2221,10 @@ async function sendMessage(content){
     // Check for resume/review command - inject saved state directly
     if(activeGame && /^\/复盘|^\/回顾|^\/状态|^\/resume|从头开始看|找回|复盘|恢复状态/.test(displayText)){
         var savedState = getSavedGameState();
+        if(!savedState){
+            // Try to recover from chat history first
+            savedState = recoverGameStateFromHistory();
+        }
         if(savedState){
             sys = sys + "\n\n🔴🔴🔴 用户要求复盘！以下是你保存的游戏状态。你必须以此为基础，用3-5句话向用户概括当前剧情进度，然后输出完整面板。🔴🔴🔴\n\n" + savedState + "\n\n🔴 回复步骤：1) 告诉用户「找到了你的存档，这是你当前的完整状态」 2) 用3-5句话概括剧情 3) 输出上面的面板（可以微调格式但数据不能变）";
         } else {
