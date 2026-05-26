@@ -2076,12 +2076,63 @@ function stopGame(){
 
 function getGameContext(){
     if(!activeGame) return "";
-    return GAME_PROMPTS[activeGame] + "\n\n用户说「结束游戏」就停止游戏，恢复为正常聊天助手模式。";
+    var ctx = GAME_PROMPTS[activeGame];
+    // Inject saved game state if exists
+    var savedState = getSavedGameState();
+    if(savedState){
+        ctx = "🔴🔴🔴 以下是你上次保存的游戏状态——这是你必须继承的真相！🔴🔴🔴\n\n" + savedState + "\n\n🔴 你必须从这个状态继续游戏。面板里的每一个数值、每一个物品、每一个任务、每一个关系——都是真实存在的。你不能丢失、不能随意修改、不能凭空消失。如果面板数据和你「记忆」的不一致——以面板为准！面板是你唯一的真相来源。🔴\n\n" + ctx;
+    }
+    return ctx + "\n\n用户说「结束游戏」就停止游戏，恢复为正常聊天助手模式。";
+}
+
+function getSavedGameState(){
+    if(!activeGame) return null;
+    try {
+        var key = "ld_state_" + activeGame;
+        var data = localStorage.getItem(key);
+        if(!data) return null;
+        var parsed = JSON.parse(data);
+        return parsed.panel || null;
+    } catch(e) { return null; }
+}
+
+function saveGamePanel(panelText){
+    if(!activeGame || !panelText) return;
+    try {
+        var key = "ld_state_" + activeGame;
+        var data = { panel: panelText, time: Date.now(), game: activeGame };
+        localStorage.setItem(key, JSON.stringify(data));
+    } catch(e) {}
+}
+
+function extractPanelFromResponse(response){
+    // Find the panel between ┌── and └── markers
+    var start = response.indexOf('┌──');
+    var end = response.lastIndexOf('└──');
+    if(start >= 0 && end > start){
+        // Find the end of the line containing └──
+        var endLine = response.indexOf('\n', end);
+        if(endLine < 0) endLine = response.length;
+        return response.substring(start, endLine).trim();
+    }
+    // Fallback: try to find panel with code block markers
+    var codeStart = response.indexOf('```\n┌──');
+    if(codeStart < 0) codeStart = response.indexOf('```\n┌');
+    if(codeStart >= 0){
+        var codeEnd = response.indexOf('```', codeStart + 3);
+        if(codeEnd > codeStart) return response.substring(codeStart + 3, codeEnd).trim();
+    }
+    return null;
 }
 
 function saveGameState(){
     if(activeGame) localStorage.setItem("ld_game", activeGame);
-    else localStorage.removeItem("ld_game");
+    else {
+        localStorage.removeItem("ld_game");
+        // Clear saved game states when leaving game
+        var games = ['ancient_rpg','text_rpg','naruto_rpg','jjk_rpg'];
+        for(var gi=0; gi<games.length; gi++) localStorage.removeItem("ld_state_"+games[gi]);
+    }
 }
 
 async function sendMessage(content){
@@ -2145,6 +2196,15 @@ async function sendMessage(content){
     if(weatherData){
         sys = sys + `\n\n[用户查询了${weatherData.city}的天气：当前${weatherData.temp}°C，${weatherData.desc}，湿度${weatherData.humidity}%，体感温度${weatherData.feels_like}°C。请在回复中自然地告诉用户这些天气信息。]`;
     }
+    // Check for resume/review command - inject saved state directly
+    if(activeGame && /^\/复盘|^\/回顾|^\/状态|^\/resume|从头开始看|找回|复盘|恢复状态/.test(displayText)){
+        var savedState = getSavedGameState();
+        if(savedState){
+            sys = sys + "\n\n🔴🔴🔴 用户要求复盘！以下是你保存的游戏状态。你必须以此为基础，用3-5句话向用户概括当前剧情进度，然后输出完整面板。🔴🔴🔴\n\n" + savedState + "\n\n🔴 回复步骤：1) 告诉用户「找到了你的存档，这是你当前的完整状态」 2) 用3-5句话概括剧情 3) 输出上面的面板（可以微调格式但数据不能变）";
+        } else {
+            sys = sys + "\n\n🔴 用户要求复盘但你没有保存的状态！请告诉用户：「我没有找到你的存档数据。请告诉我你上次记得的角色信息和剧情进度，我帮你重建面板。」";
+        }
+    }
     // Check for stop game command
     if(activeGame && /结束游戏|退出游戏|不玩了|停止游戏/.test(displayText)){
         activeGame = null; saveGameState();
@@ -2157,6 +2217,11 @@ async function sendMessage(content){
         removeTyping();
         conv.messages.push({role:"assistant",content:reply,time:Date.now()});
         extractAndSaveMemory(displayText, reply);
+        // Save game panel state from AI response
+        if(activeGame){
+            var panel = extractPanelFromResponse(reply);
+            if(panel) saveGamePanel(panel);
+        }
         saveConvs(); renderChat(); renderSidebar();
     }catch(err){
         removeTyping();
