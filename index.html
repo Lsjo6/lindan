@@ -2346,6 +2346,7 @@ async function sendMessage(content){
     // Game context
     const gameCtx = getGameContext();
     if(gameCtx) sys = sys + "\n\n" + gameCtx;
+	    if(activeGame){var forceState = getSavedGameState()||recoverGameStateFromHistory();if(forceState) sys = sys + "\n[你的存档数据——本轮必须原样继承！]\n"+forceState;}
     if(weatherData){
         sys = sys + `\n\n[用户查询了${weatherData.city}的天气：当前${weatherData.temp}°C，${weatherData.desc}，湿度${weatherData.humidity}%，体感温度${weatherData.feels_like}°C。请在回复中自然地告诉用户这些天气信息。]`;
     }
