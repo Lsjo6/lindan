@@ -2240,11 +2240,25 @@ function saveGamePanel(panelText){
     } catch(e) {}
 }
 
-function extractPanelFromResponse(response){var start=response.indexOf("┌──");var end=response.lastIndexOf("└──");if(start>=0&&end>start){var endLine=response.indexOf("
-",end);if(endLine<0)endLine=response.length;return response.substring(start,endLine).trim();}var codeStart=response.indexOf("```
-┌──");if(codeStart<0)codeStart=response.indexOf("```
-┌");if(codeStart>=0){var codeEnd=response.indexOf("```",codeStart+3);if(codeEnd>codeStart)return response.substring(codeStart+3,codeEnd).trim();}var altStart=response.indexOf("┌");var altEnd=response.lastIndexOf("└");if(altStart>=0&&altEnd>altStart){var altEndLine=response.indexOf("
-",altEnd);if(altEndLine<0)altEndLine=response.length;return response.substring(altStart,altEndLine).trim();}return null;}
+function extractPanelFromResponse(response){
+    // Find the panel between ┌── and └── markers
+    var start = response.indexOf('┌──');
+    var end = response.lastIndexOf('└──');
+    if(start >= 0 && end > start){
+        // Find the end of the line containing └──
+        var endLine = response.indexOf('\n', end);
+        if(endLine < 0) endLine = response.length;
+        return response.substring(start, endLine).trim();
+    }
+    // Fallback: try to find panel with code block markers
+    var codeStart = response.indexOf('```\n┌──');
+    if(codeStart < 0) codeStart = response.indexOf('```\n┌');
+    if(codeStart >= 0){
+        var codeEnd = response.indexOf('```', codeStart + 3);
+        if(codeEnd > codeStart) return response.substring(codeStart + 3, codeEnd).trim();
+    }
+    return null;
+}
 
 function recoverGameStateFromHistory(){
     if(!activeGame) return null;
@@ -2332,7 +2346,7 @@ async function sendMessage(content){
     // Game context
     const gameCtx = getGameContext();
     if(gameCtx) sys = sys + "\n\n" + gameCtx;
-	    if(activeGame){var forceState=getSavedGameState()||recoverGameStateFromHistory();if(forceState){sys=sys+"\n[存档——必须原样继承！]\n"+forceState;}var missed=parseInt(localStorage.getItem("ld_miss")||"0");if(missed>=2){sys=sys+"\n\n⚠️⚠️⚠️ 你已连续"+missed+"轮没输出状态面板！！！本轮必须先输出完整面板（┌──和└──标记）再继续剧情！⚠️⚠️⚠️"}}
+	    if(activeGame){var forceState = getSavedGameState()||recoverGameStateFromHistory();if(forceState) sys = sys + "\n[你的存档数据——本轮必须原样继承！]\n"+forceState;}
     if(weatherData){
         sys = sys + `\n\n[用户查询了${weatherData.city}的天气：当前${weatherData.temp}°C，${weatherData.desc}，湿度${weatherData.humidity}%，体感温度${weatherData.feels_like}°C。请在回复中自然地告诉用户这些天气信息。]`;
     }
