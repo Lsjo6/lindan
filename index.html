@@ -942,7 +942,7 @@ function init(){
     loadConvs();
 
     apiKey = localStorage.getItem("ld_api_key")||"";
-    model = localStorage.getItem("ld_model")||"deepseek-v4-flash";
+    model = localStorage.getItem("ld_model")||"deepseek-v4-flash"; if(model==="deepseek-chat")model="deepseek-v4-flash"; if(model==="deepseek-reasoner")model="deepseek-v4-pro"; localStorage.setItem("ld_model",model);
     systemPrompt = localStorage.getItem("ld_system")||"";
     currentPersonality = localStorage.getItem("ld_personality")||"default";
     smartSwitch = localStorage.getItem("ld_smart")!=="off";
